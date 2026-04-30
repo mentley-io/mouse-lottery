@@ -15,7 +15,8 @@ updated_at: 2026-04-22
 5. [API Endpoints](api/endpoints.md)
 6. [Admin Playbook](admin/admin-playbook.md)
 7. [Local Development](operations/local-dev.md)
-8. [Changelog](changelog/CHANGELOG.md)
+8. [VM Deployment](operations/vm-deploy.md)
+9. [Changelog](changelog/CHANGELOG.md)
 
 ## Documentation Rules
 
