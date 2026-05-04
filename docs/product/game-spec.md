@@ -4,7 +4,7 @@ status: draft
 updated_at: 2026-04-22
 ---
 
-# Mouse Lotto Game Spec (EN)
+# Mouse Lottery Game Spec (EN)
 
 ## Layout Order (Single Screen)
 

@@ -401,7 +401,7 @@ export default function HomePage() {
       id: 3,
       icon: "🏆",
       title: "Winning Criteria",
-      body: "If the Mouse Lotto Machine reveals your selected four digits in the next valid draw, you win the Jackpot prize.",
+      body: "If the Mouse Lottery Machine reveals your selected four digits in the next valid draw, you win the Jackpot prize.",
     },
     {
       id: 4,
@@ -426,7 +426,8 @@ export default function HomePage() {
   return (
     <main className="page page-dark">
       <header className="topbar">
-        <h1>🐭 Mouse Lottery</h1>
+        <img src="/logo.png" alt="Hamster Spin" className="topbar-logo" />
+        <span className="topbar-title">Mouse Lottery</span>
         <div className="actions">
           {!me ? (
             <>

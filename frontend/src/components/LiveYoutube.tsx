@@ -33,7 +33,7 @@ export function LiveYoutube({ videoId, overlayEnabled, latestNumber }: Props) {
             <>
               {src ? (
                 <iframe
-                  title="Mouse Lotto Live"
+                  title="Mouse Lottery Live"
                   src={src}
                   allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
                   allowFullScreen

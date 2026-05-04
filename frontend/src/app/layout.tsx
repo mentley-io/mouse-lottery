@@ -3,8 +3,8 @@ import type { Metadata } from "next";
 import { ToastHub } from "../components/ToastHub";
 
 export const metadata: Metadata = {
-  title: "Mouse Lotto",
-  description: "Mouse Lotto live draw experience",
+  title: "Mouse Lottery",
+  description: "Mouse Lottery live draw experience",
 };
 
 export default function RootLayout({

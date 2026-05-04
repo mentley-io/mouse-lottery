@@ -1,6 +1,6 @@
 # Mouse Lottery
 
-First implementation baseline for Mouse Lotto.
+First implementation baseline for Mouse Lottery.
 
 ## Quick Start (Planned)
 

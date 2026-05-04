@@ -4,7 +4,7 @@ status: draft
 updated_at: 2026-04-22
 ---
 
-# Mouse Lotto 遊戲規格（中文）
+# Mouse Lottery 遊戲規格（中文）
 
 ## 單頁區塊順序
 
