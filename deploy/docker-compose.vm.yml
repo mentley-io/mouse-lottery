@@ -33,7 +33,7 @@ services:
       context: ..
       dockerfile: deploy/frontend.Dockerfile
       args:
-        NEXT_PUBLIC_API_BASE_URL: /api
+        NEXT_PUBLIC_API_BASE_URL: ""
     container_name: mouse-lottery-frontend
     restart: unless-stopped
     depends_on:
