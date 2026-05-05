@@ -1,4 +1,4 @@
-const API_BASE = process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://localhost:4001";
+const API_BASE = process.env.NEXT_PUBLIC_API_BASE_URL ?? "";
 const AUTH_EXPIRED_FLAG = "authExpired";
 let refreshPromise: Promise<string | null> | null = null;
 
