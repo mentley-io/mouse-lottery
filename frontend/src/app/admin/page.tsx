@@ -116,7 +116,7 @@ export default function AdminPage() {
         Back
       </a>
       <h1>Admin Console</h1>
-      <p>Manage draw interval and YouTube live source.</p>
+      <p>Manage draw interval and YouTube live source config.</p>
 
       <section style={{ display: "grid", gap: 10, marginTop: 14 }}>
         <label htmlFor="draw-interval">Draw Interval (seconds)</label>

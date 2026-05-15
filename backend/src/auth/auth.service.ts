@@ -2,7 +2,7 @@ import { Injectable, UnauthorizedException } from "@nestjs/common";
 import { JwtService } from "@nestjs/jwt";
 import { ConfigService } from "@nestjs/config";
 import { UsersService } from "../users/users.service";
-import { LoginDto, RegisterDto } from "./dto";
+import { ExternalLoginDto, LoginDto, RegisterDto } from "./dto";
 
 @Injectable()
 export class AuthService {
@@ -20,7 +20,14 @@ export class AuthService {
     }
 
     const user = await this.usersService.createPlayer(normalizedPhone, dto.password);
-    return this.issueTokens(user.id, user.phone, user.role, user.permissions);
+    return this.issueTokens(
+      user.id,
+      user.phone,
+      user.role,
+      user.permissions,
+      user.walletBalanceKES,
+      user.walletCurrency,
+    );
   }
 
   async login(dto: LoginDto) {
@@ -35,7 +42,36 @@ export class AuthService {
       throw new UnauthorizedException("Invalid credentials");
     }
 
-    return this.issueTokens(user.id, user.phone, user.role, user.permissions);
+    return this.issueTokens(
+      user.id,
+      user.phone,
+      user.role,
+      user.permissions,
+      user.walletBalanceKES,
+      user.walletCurrency,
+    );
+  }
+
+  async externalLogin(dto: ExternalLoginDto) {
+    const externalPhone = this.normalizeExternalPhone(dto.phone);
+    const merchant = dto.merchant.trim();
+    const token = dto.token.trim();
+
+    let user = await this.usersService.findByPhone(externalPhone);
+    if (!user) {
+      user = await this.usersService.createExternalPlayer(externalPhone);
+    }
+
+    await this.usersService.upsertExternalLoginToken(user.id, merchant, token);
+
+    return this.issueTokens(
+      user.id,
+      user.phone,
+      user.role,
+      user.permissions,
+      user.walletBalanceKES,
+      user.walletCurrency,
+    );
   }
 
   async refresh(refreshToken: string) {
@@ -43,7 +79,18 @@ export class AuthService {
       secret: this.configService.get<string>("JWT_REFRESH_SECRET") ?? "refresh-secret",
     });
 
-    return this.issueTokens(payload.sub, payload.phone, payload.role, payload.permissions);
+    const user = await this.usersService.findById(payload.sub);
+    const walletBalanceKES = user?.walletBalanceKES ?? 0;
+    const walletCurrency = user?.walletCurrency ?? "KES";
+
+    return this.issueTokens(
+      payload.sub,
+      payload.phone,
+      payload.role,
+      payload.permissions,
+      walletBalanceKES,
+      walletCurrency,
+    );
   }
 
   private async issueTokens(
@@ -51,6 +98,8 @@ export class AuthService {
     phone: string,
     role: string,
     permissions: string[],
+    walletBalanceKES: number,
+    walletCurrency: string,
   ) {
     const payload = { sub, phone, role, permissions };
 
@@ -65,7 +114,7 @@ export class AuthService {
     });
 
     return {
-      user: { id: sub, phone, role, permissions },
+      user: { id: sub, phone, role, permissions, walletBalanceKES, walletCurrency },
       accessToken,
       refreshToken,
     };
@@ -82,5 +131,14 @@ export class AuthService {
     }
 
     throw new UnauthorizedException("Please enter a valid Kenyan mobile number.");
+  }
+
+  private normalizeExternalPhone(phone: string): string {
+    const value = phone.trim();
+    if (!value) {
+      throw new UnauthorizedException("Phone is required.");
+    }
+
+    return value;
   }
 }

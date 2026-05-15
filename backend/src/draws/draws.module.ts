@@ -1,9 +1,12 @@
 import { Module } from "@nestjs/common";
 import { MongooseModule } from "@nestjs/mongoose";
 import { AdminModule } from "../admin/admin.module";
+import { User, UserSchema } from "../users/user.schema";
 import { DrawnNumber, DrawnNumberSchema } from "./drawn-number.schema";
 import { DrawsService } from "./draws.service";
 import { Entry, EntrySchema } from "./entry.schema";
+import { JackpotState, JackpotStateSchema } from "./jackpot-state.schema";
+import { PayoutRecord, PayoutRecordSchema } from "./payout-record.schema";
 
 @Module({
   imports: [
@@ -11,6 +14,9 @@ import { Entry, EntrySchema } from "./entry.schema";
     MongooseModule.forFeature([
       { name: DrawnNumber.name, schema: DrawnNumberSchema },
       { name: Entry.name, schema: EntrySchema },
+      { name: JackpotState.name, schema: JackpotStateSchema },
+      { name: PayoutRecord.name, schema: PayoutRecordSchema },
+      { name: User.name, schema: UserSchema },
     ]),
   ],
   providers: [DrawsService],

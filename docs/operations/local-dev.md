@@ -1,7 +1,7 @@
 ---
 owner: platform
 status: draft
-updated_at: 2026-04-22
+updated_at: 2026-05-14
 ---
 
 # Local Development
@@ -32,6 +32,11 @@ On backend startup:
 - Root command starts frontend and backend together.
 - Frontend default: single-screen game page.
 - Backend default: REST API + polling updates in V1.
+
+## Test Commands
+
+- `npm run test:e2e:wallet`
+  - Runs deterministic end-to-end validation for jackpot split, wallet crediting, and wallet credit history API.
 
 ## Confirmed V1 Decisions
 

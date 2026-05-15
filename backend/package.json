@@ -6,6 +6,7 @@
     "dev": "ts-node-dev --respawn --transpile-only src/main.ts",
     "build": "tsc -p tsconfig.json",
     "start": "node dist/main.js",
+    "test:e2e:wallet": "node tests/wallet-jackpot.e2e.mjs",
     "lint": "echo 'lint:backend not configured yet'"
   },
   "dependencies": {

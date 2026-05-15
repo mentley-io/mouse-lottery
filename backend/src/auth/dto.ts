@@ -1,4 +1,4 @@
-import { IsString, Matches, MinLength } from "class-validator";
+import { IsNotEmpty, IsString, Matches, MinLength } from "class-validator";
 
 const KENYA_PHONE_REGEX = /^(?:\+254[71]\d{8}|0[71]\d{8})$/;
 
@@ -25,4 +25,18 @@ export class LoginDto {
 export class RefreshDto {
   @IsString()
   refreshToken!: string;
+}
+
+export class ExternalLoginDto {
+  @IsString()
+  @IsNotEmpty()
+  merchant!: string;
+
+  @IsString()
+  @IsNotEmpty()
+  token!: string;
+
+  @IsString()
+  @IsNotEmpty()
+  phone!: string;
 }

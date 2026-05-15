@@ -40,11 +40,11 @@ export class AdminService implements OnModuleInit {
     }
 
     this.config = {
-      drawIntervalSeconds: existing.drawIntervalSeconds,
-      youtubeVideoId: existing.youtubeVideoId,
-      liveOverlayEnabled: existing.liveOverlayEnabled,
-      realtimeMode: existing.realtimeMode,
-      pollingIntervalSeconds: existing.pollingIntervalSeconds,
+      drawIntervalSeconds: existing.drawIntervalSeconds ?? this.defaultConfig.drawIntervalSeconds,
+      youtubeVideoId: existing.youtubeVideoId ?? this.defaultConfig.youtubeVideoId,
+      liveOverlayEnabled: existing.liveOverlayEnabled ?? this.defaultConfig.liveOverlayEnabled,
+      realtimeMode: existing.realtimeMode ?? this.defaultConfig.realtimeMode,
+      pollingIntervalSeconds: existing.pollingIntervalSeconds ?? this.defaultConfig.pollingIntervalSeconds,
     };
     this.loaded = true;
   }
@@ -66,11 +66,11 @@ export class AdminService implements OnModuleInit {
     }
 
     this.config = {
-      drawIntervalSeconds: updated.drawIntervalSeconds,
-      youtubeVideoId: updated.youtubeVideoId,
-      liveOverlayEnabled: updated.liveOverlayEnabled,
-      realtimeMode: updated.realtimeMode,
-      pollingIntervalSeconds: updated.pollingIntervalSeconds,
+      drawIntervalSeconds: updated.drawIntervalSeconds ?? this.defaultConfig.drawIntervalSeconds,
+      youtubeVideoId: updated.youtubeVideoId ?? this.defaultConfig.youtubeVideoId,
+      liveOverlayEnabled: updated.liveOverlayEnabled ?? this.defaultConfig.liveOverlayEnabled,
+      realtimeMode: updated.realtimeMode ?? this.defaultConfig.realtimeMode,
+      pollingIntervalSeconds: updated.pollingIntervalSeconds ?? this.defaultConfig.pollingIntervalSeconds,
     };
   }
 

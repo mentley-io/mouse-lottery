@@ -1,6 +1,6 @@
 # Mouse Lottery Architecture (Living Document)
 
-Last updated: 2026-04-23
+Last updated: 2026-05-14
 Status: Draft v0.1
 
 ## 1. Purpose
@@ -57,12 +57,12 @@ Current repository now includes baseline `frontend/`, `backend/`, and `shared/` 
 - Auth module: register/login/refresh.
 - User and role module: shared account identity and RBAC.
 - Admin module: draw interval, YouTube live config, operational controls.
-- Lottery module: entry lock, Rule 6 windowing, winning decision, payout split.
+- Lottery module: entry lock, Rule 6 windowing, winning decision, payout split, wallet crediting, jackpot reset/accumulation.
 - Bootstrap: auto-create super admin if absent.
 
 ### 4.3 Database (MongoDB)
 
-- Persist users, roles, entries, draws, configuration, and audit fields.
+- Persist users, roles, entries, draws, jackpot state, payout ledger, configuration, and audit fields.
 - Local test URI:
 	`mongodb://localhost:27017/mouse_lottery?authSource=admin`
 
@@ -76,6 +76,11 @@ Business-rule authority lives in backend services:
 - Overlapping sequential combinations crossing current result are invalid.
 - Non-winning terminal status: `Expired`.
 - Jackpot split strategy: floor division among winners.
+- Draw stream is shared globally; ticket and win history are user-scoped by account.
+- Wallet currency is `KES`; wallet increases only from payout credit in current phase.
+- Each account can read its own wallet credit ledger (payout history).
+- Jackpot resets to `0` immediately after any winning settlement, and continues accumulating when no winner exists.
+- Jackpot accumulates at a fixed rate of `123 KES` per elapsed second.
 - If a user re-submits within the same target issue, previous pending ticket is marked `Voided`.
 
 Frontend only visualizes and guides users; it must not be source of truth for winning logic.
@@ -96,12 +101,14 @@ Frontend only visualizes and guides users; it must not be source of truth for wi
 ## 8. Event/Data Flow (Initial)
 
 1. User signs up or logs in with Kenyan phone number.
-2. Backend returns access/refresh tokens.
+2. Backend returns access/refresh tokens and wallet profile data.
 3. Frontend loads game state: jackpot, current draw, history, eligibility, and my entries.
 4. User selects 4 digits and confirms.
 5. Backend stores entry for the target issue (next draw sequence), voiding prior pending entry for the same issue/user.
-6. On draw updates, backend evaluates entries and sets result state.
-7. Frontend reflects `Won`, `Expired`, or `Voided` states and issue-linked history.
+6. On draw updates, backend evaluates eligible pending entries and settles all same-window winners together.
+7. Backend splits jackpot via floor division among winners, credits wallets, records payout ledger rows, and resets jackpot to `0`.
+8. If no winners on update, backend keeps accumulating jackpot.
+9. Frontend reflects `Won`, `Expired`, or `Voided` states, payout amounts, and wallet balance changes.
 
 ## 9. Architecture Decision Log (ADL)
 
@@ -164,6 +171,30 @@ Frontend only visualizes and guides users; it must not be source of truth for wi
 ### ADL-015
 - Decision: Re-betting in the same issue invalidates previous pending ticket as `Voided`.
 - Reason: ensure one effective active ticket per user per issue while preserving audit trail.
+
+### ADL-016
+- Decision: Every account has a KES wallet (`walletBalanceKES`, `walletCurrency`) persisted on user profile.
+- Reason: support deterministic payout crediting and post-login wallet visibility.
+
+### ADL-017
+- Decision: Draw number stream remains globally shared, while ticket and win history remain strictly user-scoped.
+- Reason: preserve single-source draw fairness and keep player history isolated.
+
+### ADL-018
+- Decision: Winning settlement groups simultaneous winners by shared winning-sequence timestamp, applies floor split, credits wallets, and resets jackpot to zero per winning settlement.
+- Reason: guarantee multi-winner fairness and enforce immediate post-win jackpot reset policy.
+
+### ADL-019
+- Decision: Settlement prefers Mongo transactions when available and falls back to non-transaction mode on standalone MongoDB.
+- Reason: keep local development functional while preserving stronger consistency in replica-set deployments.
+
+### ADL-020
+- Decision: Jackpot accumulation uses a fixed elapsed-time rule of `123 KES` per second.
+- Reason: keep accumulation deterministic and remove operational parameter drift.
+
+### ADL-021
+- Decision: Wallet credit history is exposed as a user-scoped ledger endpoint.
+- Reason: players must be able to audit personal payout credits independently.
 
 ## 10. Living Update Protocol
 

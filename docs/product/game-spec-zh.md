@@ -47,7 +47,7 @@ updated_at: 2026-04-22
 
 ## Jackpot 與分帳
 
-- Jackpot = `GGR * 2%`。
+- Jackpot 每經過 1 秒固定增加 `123 KES`。
 - 單位：`KES`。
 - 前端數字 10 秒平滑追值，期間若有新值持續延展。
 - 多人中獎以 floor 方式分帳。

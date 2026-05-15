@@ -56,6 +56,11 @@ body {
   backdrop-filter: blur(6px);
 }
 
+.topbar-merchant {
+  justify-content: center;
+  position: relative;
+}
+
 .topbar h1 {
   margin-left: 14px;
   display: flex;
@@ -77,6 +82,22 @@ body {
   margin-left: 10px;
   white-space: nowrap;
   letter-spacing: 0.03em;
+}
+
+.topbar-merchant .topbar-title {
+  margin-left: 0;
+  font-size: 1.55rem;
+  position: absolute;
+  left: 50%;
+  transform: translateX(-50%);
+}
+
+.topbar-merchant .topbar-logo {
+  position: absolute;
+  left: 8px;
+  top: 0;
+  bottom: 0;
+  margin: auto 0;
 }
 
 .actions {
@@ -102,6 +123,17 @@ body {
   font-size: 14px;
   opacity: 0.85;
   min-width: 0;
+  white-space: nowrap;
+}
+
+.wallet-badge {
+  border: 1px solid #2d446c;
+  border-radius: 999px;
+  padding: 5px 10px;
+  font-size: 12px;
+  font-weight: 700;
+  color: #b9f2d5;
+  background: rgba(20, 75, 52, 0.35);
   white-space: nowrap;
 }
 
@@ -784,6 +816,11 @@ small {
 
   .user-phone {
     font-size: 12px;
+  }
+
+  .wallet-badge {
+    font-size: 11px;
+    padding: 4px 8px;
   }
 
   .btn {

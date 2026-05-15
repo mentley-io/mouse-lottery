@@ -1,7 +1,7 @@
 ---
 owner: backend
 status: draft
-updated_at: 2026-04-22
+updated_at: 2026-05-14
 ---
 
 # API Endpoints (V1 Draft)
@@ -12,53 +12,74 @@ updated_at: 2026-04-22
 - Purpose: Register with Kenyan phone number and password.
 - Auth: Public
 - Request: `{ phone, password }`
-- Response: `{ userId, accessToken, refreshToken }`
+- Response: `{ user: { id, phone, role, permissions, walletBalanceKES, walletCurrency }, accessToken, refreshToken }`
 - Error Cases: invalid phone format, duplicate phone.
 
 ### POST /auth/login
 - Purpose: Login with shared account.
 - Auth: Public
 - Request: `{ phone, password }`
-- Response: `{ accessToken, refreshToken, user }`
+- Response: `{ user: { id, phone, role, permissions, walletBalanceKES, walletCurrency }, accessToken, refreshToken }`
 - Error Cases: invalid credentials.
 
 ### POST /auth/refresh
 - Purpose: Rotate access token.
 - Auth: Refresh token
 - Request: `{ refreshToken }`
-- Response: `{ accessToken, refreshToken }`
+- Response: `{ user: { id, phone, role, permissions, walletBalanceKES, walletCurrency }, accessToken, refreshToken }`
 - Error Cases: expired/invalid refresh token.
+
+### GET /auth/me
+- Purpose: Return active profile and permissions.
+- Auth: Access token
+- Response: `{ id, phone, role, permissions, canAccessAdmin, walletBalanceKES, walletCurrency }`
 
 ## User/Game
 
-### GET /game/jackpot
-- Purpose: Return current jackpot and target trend metadata.
-- Auth: User
-- Response: `{ amount, currency, updatedAt }`
-
-### GET /game/current-draw
-- Purpose: Return latest draw and live display payload.
-- Auth: User
-
-### GET /game/history
-- Purpose: Return historical complete draws.
-- Auth: User
+### GET /game/state
+- Purpose: Return live game state payload for frontend.
+- Auth: Public
+- Response:
+	- `jackpot: { amount, currency }`
+	- `draw.stream`: latest pushed numbers (today)
+	- `draw.history`: per-day number history
+	- `resultPolicy`: runtime behavior metadata
 
 ### GET /eligibility
 - Purpose: Return daily wager status vs 500 KES threshold.
 - Auth: User
 - Response: `{ eligible, wageredKES, requiredKES, missingKES }`
 
-### POST /entries/select
+### POST /game/entries
 - Purpose: Submit 4-digit selection.
 - Auth: User
-- Request: `{ digits: [n1,n2,n3,n4] }`
-- Response: `{ entryId, lockUntil, validFromDrawNo, validToDrawNo }`
-- Error Cases: cooldown active, ineligible user.
+- Request: `{ numbers: [n1,n2,n3,n4] }`
+- Response: `{ id, numbers, status, placedAt, validFrom, expiresAt }`
+- Notes: previous `Pending` entry for same user is marked `Voided`.
 
-### GET /entries/me
-- Purpose: Return my active and recent entries.
+### GET /game/my-entries
+- Purpose: Return my recent entries and settlement outcome.
 - Auth: User
+- Response item: `{ id, numbers, status, payoutKES, placedAt, validFrom, expiresAt, settledAt, winningSequenceEndedAt, createdAt }`
+
+### GET /game/my-wallet-credits
+- Purpose: Return my wallet credit ledger (payout history).
+- Auth: User
+- Response item: `{ id, entryId, settlementKey, jackpotBeforeSplitKES, winnerCount, payoutKES, settledAt, currency }`
+
+### POST /game/push
+- Purpose: Ingest one draw number from external feed/simulator.
+- Auth: Public (operational endpoint)
+- Request: `{ date, created_at, port, data: { sn, number, timestamp } }`
+- Response: `{ id, number, receivedAt, dayKey }`
+- Settlement behavior:
+	- Evaluates pending eligible entries.
+	- Settles simultaneous winners together by winning-sequence timestamp.
+	- Splits jackpot via floor division.
+	- Credits winner wallets (`walletBalanceKES`).
+	- Resets jackpot to `0` on winning settlement.
+	- If no winners, jackpot continues accumulating.
+	- Accumulation increment is fixed at `123 KES` per elapsed second.
 
 ## Admin
 
@@ -72,13 +93,14 @@ updated_at: 2026-04-22
 - Request: `{ seconds }`
 
 ### GET /admin/live-config
-- Purpose: Read YouTube live config.
+- Purpose: Read live runtime config.
 - Auth: Admin permission `live:manage`
+- Response: `{ youtubeVideoId, liveOverlayEnabled, realtimeMode, pollingIntervalSeconds }`
 
 ### PATCH /admin/live-config
-- Purpose: Update YouTube live video source.
+- Purpose: Update YouTube live source settings.
 - Auth: Admin permission `live:manage`
-- Request: `{ youtubeVideoId }`
+- Request: `{ youtubeVideoId?, liveOverlayEnabled? }`
 
 ### POST /admin/draws
 - Purpose: Insert/trigger draw result (MVP simulation).
@@ -88,3 +110,4 @@ updated_at: 2026-04-22
 
 - Contracts will be aligned with shared types in `shared/` once implementation starts.
 - Rule 6 validation is authoritative on backend.
+- Floor-split remainder is retained by platform.

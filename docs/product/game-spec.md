@@ -47,7 +47,7 @@ Validation error message:
 
 ## Jackpot
 
-- Jackpot = `GGR * 2%`.
+- Jackpot increases by `123 KES` per elapsed second.
 - Display unit: `KES`.
 - Frontend number animation catches up smoothly within 10 seconds.
 - If new target arrives during animation, extend and continue toward latest target.

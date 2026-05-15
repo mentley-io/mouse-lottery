@@ -35,6 +35,8 @@ type AuthPayload = {
     phone: string;
     role: string;
     permissions: string[];
+    walletBalanceKES: number;
+    walletCurrency: string;
   };
   accessToken: string;
   refreshToken: string;
@@ -46,18 +48,32 @@ type MeResponse = {
   role: string;
   permissions: string[];
   canAccessAdmin: boolean;
+  walletBalanceKES: number;
+  walletCurrency: string;
 };
 
 type TicketEntry = {
   id: string;
   numbers: number[];
   status: "Pending" | "Won" | "Expired" | "Voided";
+  payoutKES: number | null;
   placedAt: string;
   validFrom: string;
   expiresAt: string;
   settledAt: string | null;
   winningSequenceEndedAt: string | null;
   createdAt: string | null;
+};
+
+type WalletCredit = {
+  id: string;
+  entryId: string;
+  settlementKey: string;
+  jackpotBeforeSplitKES: number;
+  winnerCount: number;
+  payoutKES: number;
+  settledAt: string;
+  currency: string;
 };
 
 type HowToRule = {
@@ -68,10 +84,17 @@ type HowToRule = {
   isComplex?: boolean;
 };
 
+type ExternalRedirectParams = {
+  merchant: string;
+  token: string;
+  phone: string;
+};
+
 const FIXED_POLLING_INTERVAL_MS = 5000;
 const AUTH_EXPIRED_FLAG = "authExpired";
 const LAST_LOGIN_PHONE_KEY = "lastLoginPhone";
 const REMEMBER_LOGIN_PHONE_KEY = "rememberLoginPhone";
+const MERCHANT_CONTEXT_KEY = "merchantContext";
 
 function normalizeKenyanPhone(phone: string): string {
   const value = phone.trim();
@@ -85,10 +108,6 @@ function normalizeKenyanPhone(phone: string): string {
 }
 
 export default function HomePage() {
-  const JACKPOT_MIN = 12345678;
-  const JACKPOT_MAX = 22345678;
-  const JACKPOT_STEP = 123;
-
   const [state, setState] = useState<GameState | null>(null);
   const [me, setMe] = useState<MeResponse | null>(null);
   const [canAccessAdmin, setCanAccessAdmin] = useState(false);
@@ -100,32 +119,108 @@ export default function HomePage() {
   const [rememberLoginPhone, setRememberLoginPhone] = useState(true);
   const [selectedNumbers, setSelectedNumbers] = useState<number[]>([]);
   const [entries, setEntries] = useState<TicketEntry[]>([]);
+  const [walletCredits, setWalletCredits] = useState<WalletCredit[]>([]);
   const [playMessage, setPlayMessage] = useState("");
   const [submittingEntry, setSubmittingEntry] = useState(false);
-  const [jackpotDisplay, setJackpotDisplay] = useState(JACKPOT_MIN);
   const [historyOpen, setHistoryOpen] = useState(false);
   const [ticketHistoryOpen, setTicketHistoryOpen] = useState(false);
   const [howToOpen, setHowToOpen] = useState<number>(6);
+  const [externalRedirect, setExternalRedirect] = useState<ExternalRedirectParams | null>(null);
+
+  const persistMerchantContext = (context: ExternalRedirectParams | null) => {
+    if (typeof window === "undefined") {
+      return;
+    }
+
+    if (!context) {
+      localStorage.removeItem(MERCHANT_CONTEXT_KEY);
+      return;
+    }
+
+    localStorage.setItem(MERCHANT_CONTEXT_KEY, JSON.stringify(context));
+  };
 
   useEffect(() => {
-    const rememberPhone = localStorage.getItem(REMEMBER_LOGIN_PHONE_KEY);
-    setRememberLoginPhone(rememberPhone !== "0");
+    const bootstrap = async () => {
+      const rememberPhone = localStorage.getItem(REMEMBER_LOGIN_PHONE_KEY);
+      setRememberLoginPhone(rememberPhone !== "0");
 
-    const params = new URLSearchParams(window.location.search);
-    const hasExpiredQuery = params.get("auth") === "expired";
-    const hasExpiredFlag = localStorage.getItem(AUTH_EXPIRED_FLAG) === "1";
+      const savedMerchantContextRaw = localStorage.getItem(MERCHANT_CONTEXT_KEY);
+      if (savedMerchantContextRaw) {
+        try {
+          const savedMerchantContext = JSON.parse(savedMerchantContextRaw) as ExternalRedirectParams;
+          if (savedMerchantContext?.merchant) {
+            setExternalRedirect(savedMerchantContext);
+          }
+        } catch {
+          localStorage.removeItem(MERCHANT_CONTEXT_KEY);
+        }
+      }
 
-    if (hasExpiredQuery || hasExpiredFlag) {
-      setAuthMessage("Session expired. Please log in again.");
-      localStorage.removeItem(AUTH_EXPIRED_FLAG);
-    }
+      const params = new URLSearchParams(window.location.search);
+      const merchant = params.get("merchant")?.trim() ?? "";
+      const token = params.get("token")?.trim() ?? "";
+      const externalPhone = params.get("phone")?.trim() ?? "";
+      const hasExpiredQuery = params.get("auth") === "expired";
+      const hasExpiredFlag = localStorage.getItem(AUTH_EXPIRED_FLAG) === "1";
 
-    if (hasExpiredQuery) {
-      params.delete("auth");
-      const next = params.toString();
-      const url = next ? `/?${next}` : "/";
-      window.history.replaceState({}, "", url);
-    }
+      if (hasExpiredQuery || hasExpiredFlag) {
+        setAuthMessage("Session expired. Please log in again.");
+        localStorage.removeItem(AUTH_EXPIRED_FLAG);
+      }
+
+      if (merchant) {
+        const externalContext = { merchant, token, phone: externalPhone };
+        setExternalRedirect(externalContext);
+        persistMerchantContext(externalContext);
+
+        if (!token || !externalPhone) {
+          setAuthMessage("External login parameters are incomplete.");
+        } else {
+          try {
+            const response = await apiFetch("/api/auth/external-login", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ merchant, token, phone: externalPhone }),
+            });
+
+            const payload = (await response.json()) as AuthPayload | { message?: string };
+            if (!response.ok || !("accessToken" in payload)) {
+              const maybeError = payload as { message?: string };
+              setAuthMessage(maybeError.message ?? "External login failed");
+            } else {
+              setTokens({
+                accessToken: payload.accessToken,
+                refreshToken: payload.refreshToken,
+              });
+
+              persistMerchantContext(externalContext);
+
+              const meResponse = await apiFetch("/api/auth/me");
+              if (meResponse.ok) {
+                const mePayload = (await meResponse.json()) as MeResponse;
+                setMe(mePayload);
+                setCanAccessAdmin(mePayload.canAccessAdmin);
+              }
+            }
+          } catch {
+            setAuthMessage("Unable to complete external login");
+          }
+        }
+      }
+
+      if (hasExpiredQuery || merchant || token || externalPhone) {
+        params.delete("auth");
+        params.delete("merchant");
+        params.delete("token");
+        params.delete("phone");
+        const next = params.toString();
+        const url = next ? `/?${next}` : "/";
+        window.history.replaceState({}, "", url);
+      }
+    };
+
+    void bootstrap();
   }, []);
 
   useEffect(() => {
@@ -135,17 +230,6 @@ export default function HomePage() {
 
     window.addEventListener("api-forbidden", onForbidden);
     return () => window.removeEventListener("api-forbidden", onForbidden);
-  }, []);
-
-  useEffect(() => {
-    const id = setInterval(() => {
-      setJackpotDisplay((current) => {
-        const next = current + JACKPOT_STEP;
-        return next > JACKPOT_MAX ? JACKPOT_MIN : next;
-      });
-    }, 120);
-
-    return () => clearInterval(id);
   }, []);
 
   useEffect(() => {
@@ -198,34 +282,49 @@ export default function HomePage() {
     };
 
     void loadMe();
+    const id = setInterval(() => {
+      void loadMe();
+    }, FIXED_POLLING_INTERVAL_MS);
+
+    return () => clearInterval(id);
   }, []);
 
   useEffect(() => {
     let mounted = true;
 
-    const loadEntries = async () => {
+    const loadEntriesAndCredits = async () => {
       const token = localStorage.getItem("accessToken");
       if (!token) {
         if (mounted) {
           setEntries([]);
+          setWalletCredits([]);
         }
         return;
       }
 
-      const response = await apiFetch("/api/game/my-entries", { cache: "no-store" });
-      if (!response.ok) {
-        return;
+      const [entriesResponse, creditsResponse] = await Promise.all([
+        apiFetch("/api/game/my-entries", { cache: "no-store" }),
+        apiFetch("/api/game/my-wallet-credits", { cache: "no-store" }),
+      ]);
+
+      if (entriesResponse.ok) {
+        const entryPayload = (await entriesResponse.json()) as TicketEntry[];
+        if (mounted) {
+          setEntries(entryPayload);
+        }
       }
 
-      const payload = (await response.json()) as TicketEntry[];
-      if (mounted) {
-        setEntries(payload);
+      if (creditsResponse.ok) {
+        const creditsPayload = (await creditsResponse.json()) as WalletCredit[];
+        if (mounted) {
+          setWalletCredits(creditsPayload);
+        }
       }
     };
 
-    void loadEntries();
+    void loadEntriesAndCredits();
     const id = setInterval(() => {
-      void loadEntries();
+      void loadEntriesAndCredits();
     }, FIXED_POLLING_INTERVAL_MS);
 
     return () => {
@@ -283,6 +382,8 @@ export default function HomePage() {
 
   const logout = () => {
     clearTokens();
+    persistMerchantContext(null);
+    setExternalRedirect(null);
     setCanAccessAdmin(false);
     setMe(null);
     setAuthMessage("Logged out");
@@ -309,8 +410,17 @@ export default function HomePage() {
 
   const formattedJackpot = useMemo(() => {
     const currency = state?.jackpot.currency ?? "KES";
-    return `${currency} ${new Intl.NumberFormat("en-US").format(jackpotDisplay)}`;
-  }, [jackpotDisplay, state?.jackpot.currency]);
+    const amount = state?.jackpot.amount ?? 0;
+    return `${currency} ${new Intl.NumberFormat("en-US").format(amount)}`;
+  }, [state?.jackpot.amount, state?.jackpot.currency]);
+
+  const formattedWallet = useMemo(() => {
+    if (!me) {
+      return "KES 0";
+    }
+
+    return `${me.walletCurrency} ${new Intl.NumberFormat("en-US").format(me.walletBalanceKES)}`;
+  }, [me]);
 
   const toggleNumber = (value: number) => {
     setSelectedNumbers((current) => {
@@ -381,8 +491,10 @@ export default function HomePage() {
   const todayTotal = state?.draw.totalToday ?? 0;
   const dayKey = state?.draw.dayKey ?? "";
   const drawHistory = state?.draw.history ?? [];
-  const latestFourNumbers = streamNumbers.slice(-4).map((item) => item.number);
+  const latestFourNumbers = streamNumbers.slice(-4);
+  const latestFourNumbersOnly = latestFourNumbers.map((item) => item.number);
   const previewEntries = entries.slice(0, 5);
+  const hideTopbarActions = Boolean(externalRedirect?.merchant);
 
   const howToPlay: HowToRule[] = [
     {
@@ -425,43 +537,46 @@ export default function HomePage() {
 
   return (
     <main className="page page-dark">
-      <header className="topbar">
+      <header className={`topbar ${hideTopbarActions ? "topbar-merchant" : ""}`}>
         <img src="/logo.png" alt="Hamster Spin" className="topbar-logo" />
         <span className="topbar-title">Mouse Lottery</span>
-        <div className="actions">
-          {!me ? (
-            <>
-              <button
-                type="button"
-                className="btn btn-outline"
-                onClick={() => {
-                  openAuthModal("login");
-                }}
-              >
-                Log In
-              </button>
-              <button
-                type="button"
-                className="btn btn-primary"
-                onClick={() => {
-                  openAuthModal("register");
-                }}
-              >
-                Sign Up
-              </button>
-            </>
-          ) : null}
-          {me ? (
-            <div className="user-session">
-              <span className="user-phone">
-                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="8" r="4"/><path d="M4 20c0-4 3.6-7 8-7s8 3 8 7"/></svg>
-                {me.phone}
-              </span>
-              <button type="button" className="btn btn-outline" onClick={logout}>Log Out</button>
-            </div>
-          ) : null}
-          {canAccessAdmin ? <a className="btn btn-outline" href="/admin">Admin</a> : null}
-        </div>
+        {!hideTopbarActions ? (
+          <div className="actions">
+            {!me ? (
+              <>
+                <button
+                  type="button"
+                  className="btn btn-outline"
+                  onClick={() => {
+                    openAuthModal("login");
+                  }}
+                >
+                  Log In
+                </button>
+                <button
+                  type="button"
+                  className="btn btn-primary"
+                  onClick={() => {
+                    openAuthModal("register");
+                  }}
+                >
+                  Sign Up
+                </button>
+              </>
+            ) : null}
+            {me ? (
+              <div className="user-session">
+                <span className="user-phone">
+                  <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="8" r="4"/><path d="M4 20c0-4 3.6-7 8-7s8 3 8 7"/></svg>
+                  {me.phone}
+                </span>
+                <span className="wallet-badge">Wallet: {formattedWallet}</span>
+                <button type="button" className="btn btn-outline" onClick={logout}>Log Out</button>
+              </div>
+            ) : null}
+            {canAccessAdmin ? <a className="btn btn-outline" href="/admin">Admin</a> : null}
+          </div>
+        ) : null}
       </header>
 
       {authOpen ? (
@@ -527,15 +642,15 @@ export default function HomePage() {
         <div className="drawn-track">
           <div className="history-strip">
             {streamNumbers.map((item, index) => (
-              <span key={`${item.number}-${index}`} className="history-pill">{item.number}</span>
+              <span key={`${item.receivedAt}`} className="history-pill">{item.number}</span>
             ))}
             {streamNumbers.length === 0 ? <span style={{ opacity: 0.5, fontSize: 14 }}>No numbers received yet today.</span> : null}
           </div>
           <div className="current-draw">
-            {latestFourNumbers.map((item, index) => (
-              <span key={`${item}-${index}`} className="draw-pill">{item}</span>
+            {latestFourNumbers.map((item) => (
+              <span key={`draw-${item.receivedAt}`} className="draw-pill">{item.number}</span>
             ))}
-            {latestFourNumbers.length === 0 ? (
+            {latestFourNumbersOnly.length === 0 ? (
               <span style={{ opacity: 0.5, fontSize: 14 }}>Latest 4 numbers will appear here.</span>
             ) : null}
           </div>
@@ -605,6 +720,7 @@ export default function HomePage() {
           <h3>Select Your Numbers</h3>
           <p>Choose 4 numbers above to participate in the upcoming draws</p>
           {me ? <small>Signed in as {me.phone} ({me.role})</small> : null}
+          {me ? <small>Wallet balance: {formattedWallet}</small> : null}
           <small>Realtime mode: {state?.resultPolicy.realtimeMode ?? "polling"}, Polling: {FIXED_POLLING_INTERVAL_MS / 1000}s</small>
           <div className="entry-status-list">
             {previewEntries.map((entry) => (
@@ -613,12 +729,25 @@ export default function HomePage() {
                 {entry.status === "Pending" ? (
                   <small>Valid from {new Date(entry.validFrom).toLocaleTimeString()} · expires 23:59</small>
                 ) : entry.status === "Won" ? (
-                  <small>Won! 🎉 {entry.winningSequenceEndedAt ? new Date(entry.winningSequenceEndedAt).toLocaleTimeString() : ""}</small>
+                  <small>
+                    Won! 🎉 {entry.payoutKES !== null ? `Payout KES ${new Intl.NumberFormat("en-US").format(entry.payoutKES)} · ` : ""}
+                    {entry.winningSequenceEndedAt ? new Date(entry.winningSequenceEndedAt).toLocaleTimeString() : ""}
+                  </small>
                 ) : (
                   <small>{entry.settledAt ? new Date(entry.settledAt).toLocaleString() : ""}</small>
                 )}
               </div>
             ))}
+            {me ? (
+              <div className="entry-status">
+                <strong>Wallet Credits</strong>
+                {walletCredits.length > 0 ? walletCredits.slice(0, 3).map((credit) => (
+                  <small key={credit.id}>
+                    + {credit.currency} {new Intl.NumberFormat("en-US").format(credit.payoutKES)} · {new Date(credit.settledAt).toLocaleString()}
+                  </small>
+                )) : <small>No credit records yet.</small>}
+              </div>
+            ) : null}
             {me ? (
               <button type="button" className="entry-more-btn" onClick={() => setTicketHistoryOpen(true)}>
                 ...
@@ -643,7 +772,7 @@ export default function HomePage() {
                   <strong>{entry.status === "Pending"
                     ? `Valid from ${new Date(entry.validFrom).toLocaleTimeString()}`
                     : entry.status === "Won"
-                    ? `Won 🎉`
+                    ? `Won 🎉 ${entry.payoutKES !== null ? `(KES ${new Intl.NumberFormat("en-US").format(entry.payoutKES)})` : ""}`
                     : entry.status}</strong>
                   <span>
                     {entry.settledAt
