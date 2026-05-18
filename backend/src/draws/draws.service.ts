@@ -2,6 +2,8 @@ import { BadRequestException, Injectable, Logger } from "@nestjs/common";
 import { InjectModel } from "@nestjs/mongoose";
 import { Model, Types } from "mongoose";
 import { AdminService } from "../admin/admin.service";
+import { ActionNotificationResult, CallbackResponse, CallbackService } from "../callbacks/callback.service";
+import { MerchantService } from "../merchants/merchant.service";
 import { User, UserDocument } from "../users/user.schema";
 import { DrawnNumber, DrawnNumberDocument } from "./drawn-number.schema";
 import { Entry, EntryDocument, EntryStatus } from "./entry.schema";
@@ -35,6 +37,8 @@ export class DrawsService {
     @InjectModel(PayoutRecord.name) private readonly payoutRecordModel: Model<PayoutRecordDocument>,
     @InjectModel(User.name) private readonly userModel: Model<UserDocument>,
     private readonly adminService: AdminService,
+    private readonly merchantService: MerchantService,
+    private readonly callbackService: CallbackService,
   ) {}
 
   async getPublicState() {
@@ -117,7 +121,7 @@ export class DrawsService {
     return { id: saved._id.toString(), number, receivedAt: saved.receivedAt, dayKey };
   }
 
-  async createEntry(userId: string, numbers: number[]) {
+  async createEntry(userId: string, numbers: number[], merchantId?: string) {
     if (!Array.isArray(numbers) || numbers.length !== 4) {
       throw new BadRequestException("Please provide exactly 4 numbers.");
     }
@@ -137,6 +141,8 @@ export class DrawsService {
       validFrom,
       expiresAt,
       status: "Pending" as EntryStatus,
+      merchantId,
+      callbackStatus: merchantId ? "pending" : undefined,
     });
 
     return {
@@ -147,6 +153,60 @@ export class DrawsService {
       validFrom: entry.validFrom.toISOString(),
       expiresAt: entry.expiresAt.toISOString(),
     };
+  }
+
+  async updateEntryWithCallbackResponse(entryId: string, response: CallbackResponse) {
+    if (!Types.ObjectId.isValid(entryId)) {
+      return;
+    }
+
+    // 如果 callbackResponse 沒有 actionId，強制標記為 abnormal
+    let callbackStatus: 'success' | 'abnormal';
+    let callbackMessage = response.message;
+    if (!response.actionId) {
+      callbackStatus = 'abnormal';
+      callbackMessage = (callbackMessage ? callbackMessage + ' ' : '') + '[Missing callbackActionId]';
+    } else {
+      callbackStatus = response.success === true && response.error !== true ? 'success' : 'abnormal';
+    }
+
+    await this.entryModel.updateOne(
+      { _id: new Types.ObjectId(entryId) },
+      {
+        $set: {
+          callbackStatus,
+          callbackSentAt: new Date(),
+          callbackActionId: response.actionId,
+          callbackSuccess: response.success,
+          callbackError: response.error,
+          callbackMessage,
+        },
+      },
+    );
+  }
+
+  async updateEntryWithWinningNotificationResult(
+    entryId: string,
+    result: ActionNotificationResult,
+    status: "success" | "abnormal",
+    message?: string,
+  ) {
+    if (!Types.ObjectId.isValid(entryId)) {
+      return;
+    }
+
+    await this.entryModel.updateOne(
+      { _id: new Types.ObjectId(entryId) },
+      {
+        $set: {
+          callbackStatus: status,
+          callbackSentAt: new Date(),
+          callbackSuccess: result.ok,
+          callbackError: !result.ok,
+          callbackMessage: message ?? result.message,
+        },
+      },
+    );
   }
 
   async getEntriesForUser(userId: string) {
@@ -173,6 +233,13 @@ export class DrawsService {
       id: entry._id.toString(),
       numbers: entry.numbers,
       status: entry.status,
+      merchantId: entry.merchantId ?? null,
+      callbackStatus: entry.callbackStatus ?? null,
+      callbackActionId: entry.callbackActionId ?? null,
+      callbackSuccess: typeof entry.callbackSuccess === "boolean" ? entry.callbackSuccess : null,
+      callbackError: typeof entry.callbackError === "boolean" ? entry.callbackError : null,
+      callbackMessage: entry.callbackMessage ?? null,
+      callbackSentAt: entry.callbackSentAt?.toISOString() ?? null,
       placedAt: entry.placedAt.toISOString(),
       validFrom: entry.validFrom.toISOString(),
       expiresAt: entry.expiresAt.toISOString(),
@@ -375,6 +442,8 @@ export class DrawsService {
       await this.payoutRecordModel.insertMany(payoutRows);
     }
 
+    await this.notifyWinningEntries(winners);
+
     await this.jackpotStateModel.updateOne(
       { scope: JACKPOT_SCOPE },
       {
@@ -393,6 +462,67 @@ export class DrawsService {
     }
 
     return winners.length;
+  }
+
+  private async notifyWinningEntries(winners: EntryDocument[]): Promise<void> {
+    await Promise.all(
+      winners.map(async (winner) => {
+        const merchantId = winner.merchantId;
+        const callbackActionId = winner.callbackActionId?.trim();
+        const hadSuccessfulBetCallback = winner.callbackStatus === "success";
+
+        if (!merchantId || !callbackActionId) {
+          await this.updateEntryWithWinningNotificationResult(
+            winner._id.toString(),
+            {
+              ok: false,
+              statusCode: 0,
+              message: "Missing callbackActionId for winning notification",
+            },
+            "abnormal",
+            "Missing callbackActionId for winning notification",
+          );
+          return;
+        }
+
+        const callbackUrl = this.merchantService.getCallbackUrl(merchantId);
+        if (!callbackUrl) {
+          await this.updateEntryWithWinningNotificationResult(
+            winner._id.toString(),
+            {
+              ok: false,
+              statusCode: 0,
+              message: `Missing callback URL for merchant ${merchantId}`,
+            },
+            "abnormal",
+            `Missing callback URL for merchant ${merchantId}`,
+          );
+          return;
+        }
+
+        const result = await this.callbackService.postWinningNotification(callbackUrl, callbackActionId);
+        if (result.ok && hadSuccessfulBetCallback) {
+          await this.updateEntryWithWinningNotificationResult(
+            winner._id.toString(),
+            result,
+            "success",
+            "winning notification confirmed",
+          );
+          return;
+        }
+
+        const reason = hadSuccessfulBetCallback
+          ? `winning notification failed: ${result.message ?? `HTTP ${result.statusCode}`}`
+          : "winning notification abnormal: original bet callback was not successful";
+
+        await this.updateEntryWithWinningNotificationResult(
+          winner._id.toString(),
+          result,
+          "abnormal",
+          reason,
+        );
+      }),
+    );
   }
 
   private async getOrCreateJackpotState(): Promise<JackpotStateDocument> {

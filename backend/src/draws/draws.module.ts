@@ -1,6 +1,8 @@
 import { Module } from "@nestjs/common";
 import { MongooseModule } from "@nestjs/mongoose";
 import { AdminModule } from "../admin/admin.module";
+import { CallbackModule } from "../callbacks/callback.module";
+import { MerchantModule } from "../merchants/merchant.module";
 import { User, UserSchema } from "../users/user.schema";
 import { DrawnNumber, DrawnNumberSchema } from "./drawn-number.schema";
 import { DrawsService } from "./draws.service";
@@ -11,6 +13,8 @@ import { PayoutRecord, PayoutRecordSchema } from "./payout-record.schema";
 @Module({
   imports: [
     AdminModule,
+    MerchantModule,
+    CallbackModule,
     MongooseModule.forFeature([
       { name: DrawnNumber.name, schema: DrawnNumberSchema },
       { name: Entry.name, schema: EntrySchema },

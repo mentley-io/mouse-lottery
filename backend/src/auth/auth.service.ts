@@ -1,6 +1,7 @@
-import { Injectable, UnauthorizedException } from "@nestjs/common";
+import { BadRequestException, Injectable, UnauthorizedException } from "@nestjs/common";
 import { JwtService } from "@nestjs/jwt";
 import { ConfigService } from "@nestjs/config";
+import { MerchantService } from "../merchants/merchant.service";
 import { UsersService } from "../users/users.service";
 import { ExternalLoginDto, LoginDto, RegisterDto } from "./dto";
 
@@ -10,6 +11,7 @@ export class AuthService {
     private readonly usersService: UsersService,
     private readonly jwtService: JwtService,
     private readonly configService: ConfigService,
+    private readonly merchantService: MerchantService,
   ) {}
 
   async register(dto: RegisterDto) {
@@ -27,6 +29,7 @@ export class AuthService {
       user.permissions,
       user.walletBalanceKES,
       user.walletCurrency,
+      "local",
     );
   }
 
@@ -49,6 +52,7 @@ export class AuthService {
       user.permissions,
       user.walletBalanceKES,
       user.walletCurrency,
+      "local",
     );
   }
 
@@ -56,6 +60,10 @@ export class AuthService {
     const externalPhone = this.normalizeExternalPhone(dto.phone);
     const merchant = dto.merchant.trim();
     const token = dto.token.trim();
+
+    if (!this.merchantService.isValidMerchant(merchant)) {
+      throw new BadRequestException("Invalid merchant");
+    }
 
     let user = await this.usersService.findByPhone(externalPhone);
     if (!user) {
@@ -71,17 +79,28 @@ export class AuthService {
       user.permissions,
       user.walletBalanceKES,
       user.walletCurrency,
+      "external",
     );
   }
 
   async refresh(refreshToken: string) {
-    const payload = await this.jwtService.verifyAsync(refreshToken, {
+    const payload = await this.jwtService.verifyAsync<{
+      sub: string;
+      phone: string;
+      role: string;
+      permissions: string[];
+      authMethod?: string;
+    }>(refreshToken, {
       secret: this.configService.get<string>("JWT_REFRESH_SECRET") ?? "refresh-secret",
     });
 
     const user = await this.usersService.findById(payload.sub);
     const walletBalanceKES = user?.walletBalanceKES ?? 0;
     const walletCurrency = user?.walletCurrency ?? "KES";
+    const inferredAuthMethod: "local" | "external" =
+      payload.authMethod === "external" || (user?.externalMerchant && user?.externalToken)
+        ? "external"
+        : "local";
 
     return this.issueTokens(
       payload.sub,
@@ -90,6 +109,7 @@ export class AuthService {
       payload.permissions,
       walletBalanceKES,
       walletCurrency,
+      inferredAuthMethod,
     );
   }
 
@@ -100,8 +120,9 @@ export class AuthService {
     permissions: string[],
     walletBalanceKES: number,
     walletCurrency: string,
+    authMethod: "local" | "external" = "local",
   ) {
-    const payload = { sub, phone, role, permissions };
+    const payload = { sub, phone, role, permissions, authMethod };
 
     const accessToken = await this.jwtService.signAsync(payload, {
       secret: this.configService.get<string>("JWT_ACCESS_SECRET") ?? "access-secret",

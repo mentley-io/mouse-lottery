@@ -4,6 +4,7 @@ import { HydratedDocument, Types } from "mongoose";
 export type EntryDocument = HydratedDocument<Entry>;
 
 export type EntryStatus = "Pending" | "Won" | "Expired" | "Voided";
+export type CallbackStatus = "pending" | "success" | "failed" | "abnormal";
 
 @Schema({ timestamps: true })
 export class Entry {
@@ -33,6 +34,27 @@ export class Entry {
 
   @Prop({ required: false })
   winningSequenceEndedAt?: Date;
+
+  @Prop({ required: false })
+  merchantId?: string;
+
+  @Prop({ required: false })
+  callbackActionId?: string;
+
+  @Prop({ required: false })
+  callbackSuccess?: boolean;
+
+  @Prop({ required: false })
+  callbackError?: boolean;
+
+  @Prop({ required: false })
+  callbackMessage?: string;
+
+  @Prop({ required: false, index: true })
+  callbackSentAt?: Date;
+
+  @Prop({ required: false, enum: ["pending", "success", "failed", "abnormal"], index: true })
+  callbackStatus?: CallbackStatus;
 
   createdAt?: Date;
   updatedAt?: Date;

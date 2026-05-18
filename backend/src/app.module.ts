@@ -4,13 +4,19 @@ import { MongooseModule } from "@nestjs/mongoose";
 import { AdminModule } from "./admin/admin.module";
 import { AppController } from "./app.controller";
 import { AuthModule } from "./auth/auth.module";
+import { CallbackModule } from "./callbacks/callback.module";
 import { DrawsModule } from "./draws/draws.module";
 import { GameController } from "./game.controller";
+import { MerchantModule } from "./merchants/merchant.module";
 import { UsersModule } from "./users/users.module";
 
 @Module({
   imports: [
-    ConfigModule.forRoot({ isGlobal: true }),
+    ConfigModule.forRoot({
+      isGlobal: true,
+      // Support startup from either repo root or backend workspace.
+      envFilePath: [".env", "../.env"],
+    }),
     MongooseModule.forRootAsync({
       inject: [ConfigService],
       useFactory: (configService: ConfigService) => ({
@@ -20,6 +26,8 @@ import { UsersModule } from "./users/users.module";
       }),
     }),
     UsersModule,
+    MerchantModule,
+    CallbackModule,
     AuthModule,
     AdminModule,
     DrawsModule,

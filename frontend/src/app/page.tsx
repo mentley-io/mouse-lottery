@@ -56,6 +56,7 @@ type TicketEntry = {
   id: string;
   numbers: number[];
   status: "Pending" | "Won" | "Expired" | "Voided";
+  callbackStatus?: "pending" | "success" | "failed" | "abnormal" | null;
   payoutKES: number | null;
   placedAt: string;
   validFrom: string;
@@ -184,10 +185,23 @@ export default function HomePage() {
               body: JSON.stringify({ merchant, token, phone: externalPhone }),
             });
 
-            const payload = (await response.json()) as AuthPayload | { message?: string };
+            const payload = (await response.json()) as AuthPayload | { message?: string; error?: string };
             if (!response.ok || !("accessToken" in payload)) {
-              const maybeError = payload as { message?: string };
-              setAuthMessage(maybeError.message ?? "External login failed");
+              const maybeError = payload as { message?: string; error?: string };
+              const errorMessage = maybeError.error ?? maybeError.message ?? "External login failed";
+
+              if (errorMessage.includes("Invalid merchant")) {
+                clearTokens();
+                persistMerchantContext(null);
+                setExternalRedirect(null);
+                setMe(null);
+                setCanAccessAdmin(false);
+                setAuthMessage("Invalid merchant, redirecting to home.");
+                window.location.replace("/");
+                return;
+              }
+
+              setAuthMessage(errorMessage);
             } else {
               setTokens({
                 accessToken: payload.accessToken,
@@ -496,6 +510,18 @@ export default function HomePage() {
   const previewEntries = entries.slice(0, 5);
   const hideTopbarActions = Boolean(externalRedirect?.merchant);
 
+  const getEntryDisplayStatus = (entry: TicketEntry): "Pending" | "Won" | "Expired" | "Voided" | "Abnormal" => {
+    if (entry.callbackStatus === "abnormal") {
+      return "Abnormal";
+    }
+    return entry.status;
+  };
+
+  const getEntryStatusClassName = (entry: TicketEntry): string => {
+    const displayStatus = getEntryDisplayStatus(entry).toLowerCase();
+    return `entry-status entry-${displayStatus}`;
+  };
+
   const howToPlay: HowToRule[] = [
     {
       id: 1,
@@ -720,25 +746,27 @@ export default function HomePage() {
           <h3>Select Your Numbers</h3>
           <p>Choose 4 numbers above to participate in the upcoming draws</p>
           {me ? <small>Signed in as {me.phone} ({me.role})</small> : null}
-          {me ? <small>Wallet balance: {formattedWallet}</small> : null}
+          {me && !hideTopbarActions ? <small>Wallet balance: {formattedWallet}</small> : null}
           <small>Realtime mode: {state?.resultPolicy.realtimeMode ?? "polling"}, Polling: {FIXED_POLLING_INTERVAL_MS / 1000}s</small>
           <div className="entry-status-list">
             {previewEntries.map((entry) => (
-              <div key={entry.id} className={`entry-status entry-${entry.status.toLowerCase()}`}>
-                <strong>{entry.numbers.join("-")}</strong> · {entry.status}
-                {entry.status === "Pending" ? (
+              <div key={entry.id} className={getEntryStatusClassName(entry)}>
+                <strong>{entry.numbers.join("-")}</strong> · {getEntryDisplayStatus(entry)}
+                {getEntryDisplayStatus(entry) === "Pending" ? (
                   <small>Valid from {new Date(entry.validFrom).toLocaleTimeString()} · expires 23:59</small>
-                ) : entry.status === "Won" ? (
+                ) : getEntryDisplayStatus(entry) === "Won" ? (
                   <small>
                     Won! 🎉 {entry.payoutKES !== null ? `Payout KES ${new Intl.NumberFormat("en-US").format(entry.payoutKES)} · ` : ""}
                     {entry.winningSequenceEndedAt ? new Date(entry.winningSequenceEndedAt).toLocaleTimeString() : ""}
                   </small>
+                ) : getEntryDisplayStatus(entry) === "Abnormal" ? (
+                  <small>Please log in again.</small>
                 ) : (
                   <small>{entry.settledAt ? new Date(entry.settledAt).toLocaleString() : ""}</small>
                 )}
               </div>
             ))}
-            {me ? (
+            {me && !hideTopbarActions ? (
               <div className="entry-status">
                 <strong>Wallet Credits</strong>
                 {walletCredits.length > 0 ? walletCredits.slice(0, 3).map((credit) => (
@@ -768,12 +796,14 @@ export default function HomePage() {
             <div className="history-table">
               {entries.map((entry) => (
                 <div key={entry.id} className="history-row">
-                  <span>{entry.numbers.join("-")} · {entry.status}</span>
-                  <strong>{entry.status === "Pending"
+                  <span>{entry.numbers.join("-")} · {getEntryDisplayStatus(entry)}</span>
+                  <strong>{getEntryDisplayStatus(entry) === "Pending"
                     ? `Valid from ${new Date(entry.validFrom).toLocaleTimeString()}`
-                    : entry.status === "Won"
-                    ? `Won 🎉 ${entry.payoutKES !== null ? `(KES ${new Intl.NumberFormat("en-US").format(entry.payoutKES)})` : ""}`
-                    : entry.status}</strong>
+                    : getEntryDisplayStatus(entry) === "Won"
+                    ? "Won 🎉"
+                    : getEntryDisplayStatus(entry) === "Abnormal"
+                    ? "Please log in again."
+                    : getEntryDisplayStatus(entry)}</strong>
                   <span>
                     {entry.settledAt
                       ? new Date(entry.settledAt).toLocaleString()

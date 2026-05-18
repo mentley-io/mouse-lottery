@@ -1,7 +1,10 @@
 import {
+  BadRequestException,
   Body,
   Controller,
   Get,
+  HttpException,
+  HttpStatus,
   Post,
   Req,
   UseGuards,
@@ -29,8 +32,15 @@ export class AuthController {
   }
 
   @Post("external-login")
-  externalLogin(@Body() dto: ExternalLoginDto) {
-    return this.authService.externalLogin(dto);
+  async externalLogin(@Body() dto: ExternalLoginDto) {
+    try {
+      return await this.authService.externalLogin(dto);
+    } catch (error) {
+      if (error instanceof BadRequestException) {
+        throw new HttpException({ success: false, error: "Invalid merchant" }, HttpStatus.BAD_REQUEST);
+      }
+      throw error;
+    }
   }
 
   @Post("refresh")

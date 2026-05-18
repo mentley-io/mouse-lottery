@@ -566,6 +566,11 @@ body {
   border-color: rgba(196, 100, 42, 0.38);
 }
 
+.entry-abnormal {
+  background: rgba(38, 122, 255, 0.16);
+  border-color: rgba(38, 122, 255, 0.45);
+}
+
 .howto-panel h2 {
   text-align: center;
   margin-top: 0;

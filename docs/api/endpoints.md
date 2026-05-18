@@ -45,11 +45,6 @@ updated_at: 2026-05-14
 	- `draw.history`: per-day number history
 	- `resultPolicy`: runtime behavior metadata
 
-### GET /eligibility
-- Purpose: Return daily wager status vs 500 KES threshold.
-- Auth: User
-- Response: `{ eligible, wageredKES, requiredKES, missingKES }`
-
 ### POST /game/entries
 - Purpose: Submit 4-digit selection.
 - Auth: User
