@@ -756,7 +756,7 @@ export default function HomePage() {
                   <small>Valid from {new Date(entry.validFrom).toLocaleTimeString()} · expires 23:59</small>
                 ) : getEntryDisplayStatus(entry) === "Won" ? (
                   <small>
-                    Won! 🎉 {entry.payoutKES !== null ? `Payout KES ${new Intl.NumberFormat("en-US").format(entry.payoutKES)} · ` : ""}
+                    Won! 🎉
                     {entry.winningSequenceEndedAt ? new Date(entry.winningSequenceEndedAt).toLocaleTimeString() : ""}
                   </small>
                 ) : getEntryDisplayStatus(entry) === "Abnormal" ? (
