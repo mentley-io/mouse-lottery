@@ -91,6 +91,11 @@ type ExternalRedirectParams = {
   phone: string;
 };
 
+type AnnouncementConfig = {
+  enabled: boolean;
+  content: string;
+};
+
 const FIXED_POLLING_INTERVAL_MS = 5000;
 const AUTH_EXPIRED_FLAG = "authExpired";
 const LAST_LOGIN_PHONE_KEY = "lastLoginPhone";
@@ -127,6 +132,7 @@ export default function HomePage() {
   const [ticketHistoryOpen, setTicketHistoryOpen] = useState(false);
   const [howToOpen, setHowToOpen] = useState<number>(6);
   const [externalRedirect, setExternalRedirect] = useState<ExternalRedirectParams | null>(null);
+  const [announcement, setAnnouncement] = useState<AnnouncementConfig>({ enabled: false, content: "" });
 
   const persistMerchantContext = (context: ExternalRedirectParams | null) => {
     if (typeof window === "undefined") {
@@ -347,6 +353,37 @@ export default function HomePage() {
     };
   }, [me?.id]);
 
+  useEffect(() => {
+    let mounted = true;
+
+    const fetchAnnouncement = async () => {
+      const response = await apiFetch("/api/announcement", { cache: "no-store" });
+      if (!response.ok) {
+        return;
+      }
+
+      const payload = (await response.json()) as Partial<AnnouncementConfig>;
+      if (!mounted) {
+        return;
+      }
+
+      setAnnouncement({
+        enabled: Boolean(payload.enabled),
+        content: typeof payload.content === "string" ? payload.content : "",
+      });
+    };
+
+    void fetchAnnouncement();
+    const id = setInterval(() => {
+      void fetchAnnouncement();
+    }, FIXED_POLLING_INTERVAL_MS);
+
+    return () => {
+      mounted = false;
+      clearInterval(id);
+    };
+  }, []);
+
   const onSubmitAuth = async () => {
     setAuthMessage("");
     try {
@@ -436,7 +473,13 @@ export default function HomePage() {
     return `${me.walletCurrency} ${new Intl.NumberFormat("en-US").format(me.walletBalanceKES)}`;
   }, [me]);
 
+  const isBettingLocked = announcement.enabled;
+
   const toggleNumber = (value: number) => {
+    if (isBettingLocked) {
+      return;
+    }
+
     setSelectedNumbers((current) => {
       if (current.length >= 4) {
         return current;
@@ -446,10 +489,19 @@ export default function HomePage() {
   };
 
   const clearNumbers = () => {
+    if (isBettingLocked) {
+      return;
+    }
+
     setSelectedNumbers([]);
   };
 
   const confirmNumbers = async () => {
+    if (isBettingLocked) {
+      setPlayMessage("Betting is temporarily unavailable due to an active announcement.");
+      return;
+    }
+
     if (!me) {
       setPlayMessage("Please log in to submit your numbers.");
       openAuthModal("login");
@@ -645,6 +697,8 @@ export default function HomePage() {
         videoId={state?.youtubeVideoId}
         overlayEnabled={state?.resultPolicy.liveOverlayEnabled ?? false}
         latestNumber={streamNumbers.length > 0 ? streamNumbers[streamNumbers.length - 1].number : undefined}
+        announcementEnabled={announcement.enabled}
+        announcementContent={announcement.content}
       />
 
       <section className="jackpot-band">
@@ -715,6 +769,7 @@ export default function HomePage() {
                 type="button"
                 className={`num-btn ${selectedNumbers.includes(item) ? "num-selected" : ""}`}
                 onClick={() => toggleNumber(item)}
+                disabled={isBettingLocked}
               >
                 {item}
               </button>
@@ -731,13 +786,14 @@ export default function HomePage() {
           </div>
 
           <div className="betting-actions">
-            <button type="button" className="btn btn-outline" onClick={clearNumbers}>Clear</button>
-            <button type="button" className="btn btn-primary" onClick={() => void confirmNumbers()} disabled={submittingEntry}>
+            <button type="button" className="btn btn-outline" onClick={clearNumbers} disabled={isBettingLocked}>Clear</button>
+            <button type="button" className="btn btn-primary" onClick={() => void confirmNumbers()} disabled={submittingEntry || isBettingLocked}>
               {submittingEntry ? "Submitting..." : "Confirm Numbers"}
             </button>
           </div>
 
           <p className="subtle-text">You can change your numbers every 30 minutes. Previous selections will be voided.</p>
+          {isBettingLocked ? <p className="subtle-text">Betting is currently locked by admin announcement.</p> : null}
           {playMessage ? <p className="subtle-text">{playMessage}</p> : null}
         </article>
 

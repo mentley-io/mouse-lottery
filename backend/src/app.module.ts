@@ -9,6 +9,7 @@ import { DrawsModule } from "./draws/draws.module";
 import { GameController } from "./game.controller";
 import { MerchantModule } from "./merchants/merchant.module";
 import { UsersModule } from "./users/users.module";
+import { AnnouncementModule } from "./announcement/announcement.module";
 
 @Module({
   imports: [
@@ -31,6 +32,7 @@ import { UsersModule } from "./users/users.module";
     AuthModule,
     AdminModule,
     DrawsModule,
+    AnnouncementModule,
   ],
   controllers: [AppController, GameController],
 })

@@ -232,6 +232,47 @@ body {
   border: 0;
 }
 
+.live-announcement-overlay {
+  position: absolute;
+  inset: 0;
+  z-index: 12;
+  display: grid;
+  place-items: center;
+  padding: 18px;
+  background: rgba(3, 7, 16, 0.7);
+}
+
+.live-announcement-card {
+  width: min(92%, 820px);
+  background: linear-gradient(160deg, rgba(16, 26, 43, 0.97), rgba(27, 40, 64, 0.96));
+  border: 1px solid #506996;
+  border-radius: 16px;
+  padding: 22px;
+  box-shadow: 0 16px 52px rgba(0, 0, 0, 0.35);
+}
+
+.live-announcement-tag {
+  margin: 0 0 8px;
+  color: #f4c542;
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  font-weight: 700;
+}
+
+.live-announcement-card h3 {
+  margin: 0 0 10px;
+  font-size: clamp(20px, 2.2vw, 34px);
+}
+
+.live-announcement-body {
+  margin: 0;
+  color: #d6deec;
+  font-size: clamp(15px, 1.4vw, 22px);
+  line-height: 1.6;
+  white-space: pre-wrap;
+}
+
 .video-skeleton {
   position: absolute;
   inset: 0;
@@ -460,6 +501,12 @@ body {
   color: #e8edf7;
   font-size: 36px;
   font-weight: 700;
+}
+
+.num-btn:disabled,
+.live-controls .btn:disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
 }
 
 .num-selected {

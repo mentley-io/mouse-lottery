@@ -7,9 +7,17 @@ type Props = {
   videoId?: string;
   overlayEnabled: boolean;
   latestNumber?: number;
+  announcementEnabled?: boolean;
+  announcementContent?: string;
 };
 
-export function LiveYoutube({ videoId, overlayEnabled, latestNumber }: Props) {
+export function LiveYoutube({
+  videoId,
+  overlayEnabled,
+  latestNumber,
+  announcementEnabled = false,
+  announcementContent = "",
+}: Props) {
   const [wheelMode, setWheelMode] = useState(false);
 
   const src = useMemo(() => {
@@ -55,6 +63,18 @@ export function LiveYoutube({ videoId, overlayEnabled, latestNumber }: Props) {
               ) : null}
             </>
           )}
+
+          {announcementEnabled ? (
+            <div className="live-announcement-overlay" role="dialog" aria-modal="true" aria-label="Site announcement">
+              <div className="live-announcement-card">
+                <p className="live-announcement-tag">Announcement</p>
+                <h3>Temporary Service Notice</h3>
+                <p className="live-announcement-body">
+                  {announcementContent.trim() || "The game is temporarily paused. Please check back shortly."}
+                </p>
+              </div>
+            </div>
+          ) : null}
         </div>
       </section>
 
@@ -64,6 +84,7 @@ export function LiveYoutube({ videoId, overlayEnabled, latestNumber }: Props) {
           type="button"
           className={`btn ${wheelMode ? "btn-primary" : "btn-outline"}`}
           onClick={() => setWheelMode(true)}
+          disabled={announcementEnabled}
         >
           🎡 Wheel Mode
         </button>
@@ -71,6 +92,7 @@ export function LiveYoutube({ videoId, overlayEnabled, latestNumber }: Props) {
           type="button"
           className={`btn ${!wheelMode ? "btn-primary" : "btn-outline"}`}
           onClick={() => setWheelMode(false)}
+          disabled={announcementEnabled}
         >
           📺 Watch Video
         </button>

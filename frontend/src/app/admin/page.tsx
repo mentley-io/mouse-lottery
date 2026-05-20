@@ -7,6 +7,8 @@ export default function AdminPage() {
   const [drawInterval, setDrawInterval] = useState("");
   const [youtubeVideoId, setYoutubeVideoId] = useState("");
   const [liveOverlayEnabled, setLiveOverlayEnabled] = useState(false);
+  const [announcementEnabled, setAnnouncementEnabled] = useState(false);
+  const [announcementContent, setAnnouncementContent] = useState("");
   const [isLoading, setIsLoading] = useState(true);
   const [message, setMessage] = useState("");
 
@@ -20,18 +22,19 @@ export default function AdminPage() {
 
     const load = async () => {
       try {
-        const [drawRes, liveRes] = await Promise.all([
+        const [drawRes, liveRes, announcementRes] = await Promise.all([
           apiFetch("/api/admin/draw-interval"),
           apiFetch("/api/admin/live-config"),
+          apiFetch("/api/announcement"),
         ]);
 
-        if (drawRes.status === 401 || liveRes.status === 401) {
+        if (drawRes.status === 401 || liveRes.status === 401 || announcementRes.status === 401) {
           setMessage("Session expired. Please log in again.");
           setIsLoading(false);
           return;
         }
 
-        if (drawRes.status === 403 || liveRes.status === 403) {
+        if (drawRes.status === 403 || liveRes.status === 403 || announcementRes.status === 403) {
           setMessage("You do not have admin permission.");
           setIsLoading(false);
           return;
@@ -49,6 +52,15 @@ export default function AdminPage() {
           };
           setYoutubeVideoId(live.youtubeVideoId);
           setLiveOverlayEnabled(live.liveOverlayEnabled ?? true);
+        }
+
+        if (announcementRes.ok) {
+          const announcement = (await announcementRes.json()) as {
+            enabled: boolean;
+            content: string;
+          };
+          setAnnouncementEnabled(Boolean(announcement.enabled));
+          setAnnouncementContent(typeof announcement.content === "string" ? announcement.content : "");
         }
         setIsLoading(false);
       } catch {
@@ -88,17 +100,28 @@ export default function AdminPage() {
         }),
       ]);
 
-      if (drawRes.ok && liveRes.ok) {
+      const announcementRes = await apiFetch("/api/announcement", {
+        method: "PATCH",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          enabled: announcementEnabled,
+          content: announcementContent,
+        }),
+      });
+
+      if (drawRes.ok && liveRes.ok && announcementRes.ok) {
         setMessage("Admin configuration updated.");
         return;
       }
 
-      if (drawRes.status === 401 || liveRes.status === 401) {
+      if (drawRes.status === 401 || liveRes.status === 401 || announcementRes.status === 401) {
         setMessage("Session expired. Please log in again.");
         return;
       }
 
-      if (drawRes.status === 403 || liveRes.status === 403) {
+      if (drawRes.status === 403 || liveRes.status === 403 || announcementRes.status === 403) {
         setMessage("You do not have admin permission.");
         return;
       }
@@ -116,7 +139,7 @@ export default function AdminPage() {
         Back
       </a>
       <h1>Admin Console</h1>
-      <p>Manage draw interval and YouTube live source config.</p>
+      <p>Manage draw interval, YouTube live source config, and site announcement.</p>
 
       <section style={{ display: "grid", gap: 10, marginTop: 14 }}>
         <label htmlFor="draw-interval">Draw Interval (seconds)</label>
@@ -145,6 +168,27 @@ export default function AdminPage() {
           onChange={(event) => setLiveOverlayEnabled(event.target.checked)}
           disabled={isLoading}
           style={{ width: 20, height: 20 }}
+        />
+
+        <label htmlFor="announcement-enabled">Announcement Enabled</label>
+        <input
+          id="announcement-enabled"
+          type="checkbox"
+          checked={announcementEnabled}
+          onChange={(event) => setAnnouncementEnabled(event.target.checked)}
+          disabled={isLoading}
+          style={{ width: 20, height: 20 }}
+        />
+
+        <label htmlFor="announcement-content">Announcement Content</label>
+        <textarea
+          id="announcement-content"
+          value={announcementContent}
+          onChange={(event) => setAnnouncementContent(event.target.value)}
+          disabled={isLoading}
+          rows={6}
+          style={{ resize: "vertical", fontFamily: "inherit", padding: 10 }}
+          placeholder="Enter announcement details shown on the homepage popup"
         />
 
         <button type="button" onClick={save} style={{ width: "fit-content" }} disabled={isLoading || !drawInterval.trim() || !youtubeVideoId.trim()}>
