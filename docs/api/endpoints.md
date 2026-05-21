@@ -1,7 +1,7 @@
 ---
 owner: backend
 status: draft
-updated_at: 2026-05-14
+updated_at: 2026-05-21
 ---
 
 # API Endpoints (V1 Draft)
@@ -70,11 +70,12 @@ updated_at: 2026-05-14
 - Settlement behavior:
 	- Evaluates pending eligible entries.
 	- Settles simultaneous winners together by winning-sequence timestamp.
-	- Splits jackpot via floor division.
+	- Splits jackpot via floor division, then each winner receives one-tenth of the split amount.
 	- Credits winner wallets (`walletBalanceKES`).
 	- Resets jackpot to `0` on winning settlement.
 	- If no winners, jackpot continues accumulating.
-	- Accumulation increment is fixed at `123 KES` per elapsed second.
+	- Accumulation increment is configurable from admin (`jackpotIncrementAmount`, KES per second).
+	- Winning notification callback is skipped when the winner role is `super_admin`.
 
 ## Admin
 
@@ -82,10 +83,15 @@ updated_at: 2026-05-14
 - Purpose: Return admin permissions for frontend visibility.
 - Auth: Admin permission `admin:access`
 
-### PATCH /admin/draw-interval
-- Purpose: Update draw interval configuration.
+### GET /admin/jackpot-increment
+- Purpose: Read current jackpot increment setting.
 - Auth: Admin permission `draw:manage`
-- Request: `{ seconds }`
+- Response: `{ jackpotIncrementAmount }`
+
+### PATCH /admin/jackpot-increment
+- Purpose: Update jackpot increment setting.
+- Auth: Admin permission `draw:manage`
+- Request: `{ amount }`
 
 ### GET /admin/live-config
 - Purpose: Read live runtime config.

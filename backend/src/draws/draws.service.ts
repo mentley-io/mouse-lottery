@@ -19,7 +19,6 @@ function endOfUtcDay(date: Date): Date {
 }
 
 const JACKPOT_SCOPE = "global";
-const JACKPOT_INCREMENT_PER_SECOND_KES = 123;
 
 function clampToNow(date: Date): Date {
   const now = new Date();
@@ -93,6 +92,7 @@ export class DrawsService {
         payoutRemainderPolicy: "platform_retained",
         realtimeMode: runtimeConfig.realtimeMode,
         pollingIntervalSeconds: runtimeConfig.pollingIntervalSeconds,
+        jackpotIncrementAmount: runtimeConfig.jackpotIncrementAmount,
         liveOverlayEnabled: runtimeConfig.liveOverlayEnabled,
         otpEnabled: false,
       },
@@ -415,7 +415,7 @@ export class DrawsService {
 
     const winnerCount = winners.length;
     const jackpotBeforeSplitKES = jackpot.currentAmountKES;
-    const payoutKES = Math.floor(jackpotBeforeSplitKES / winnerCount);
+    const payoutKES = Math.floor(jackpotBeforeSplitKES / winnerCount / 10);
 
     if (payoutKES > 0) {
       const winnerUserIds = winners.map((entry) => entry.userId);
@@ -465,8 +465,34 @@ export class DrawsService {
   }
 
   private async notifyWinningEntries(winners: EntryDocument[]): Promise<void> {
+    const winnerUserIds = winners.map((winner) => winner.userId);
+    const winnerUsers = await this.userModel
+      .find({ _id: { $in: winnerUserIds } })
+      .select({ _id: 1, role: 1 })
+      .lean();
+    const roleByUserId = new Map<string, string>();
+
+    for (const user of winnerUsers) {
+      roleByUserId.set(user._id.toString(), user.role);
+    }
+
     await Promise.all(
       winners.map(async (winner) => {
+        const winnerRole = roleByUserId.get(winner.userId.toString());
+        if (winnerRole === "super_admin") {
+          await this.updateEntryWithWinningNotificationResult(
+            winner._id.toString(),
+            {
+              ok: true,
+              statusCode: 200,
+              message: "winning notification skipped for super_admin",
+            },
+            "success",
+            "winning notification skipped for super_admin",
+          );
+          return;
+        }
+
         const merchantId = winner.merchantId;
         const callbackActionId = winner.callbackActionId?.trim();
         const hadSuccessfulBetCallback = winner.callbackStatus === "success";
@@ -542,6 +568,12 @@ export class DrawsService {
 
   private async accrueJackpotByTime(asOf: Date): Promise<void> {
     const effectiveAsOf = clampToNow(asOf);
+    const runtimeConfig = await this.adminService.getGameRuntimeConfig();
+    const incrementPerSecond = Math.max(0, Math.floor(runtimeConfig.jackpotIncrementAmount ?? 0));
+
+    if (incrementPerSecond <= 0) {
+      return;
+    }
 
     for (let attempt = 0; attempt < 3; attempt++) {
       const jackpot = await this.getOrCreateJackpotState();
@@ -573,7 +605,7 @@ export class DrawsService {
         return;
       }
 
-      const deltaKES = elapsedSeconds * JACKPOT_INCREMENT_PER_SECOND_KES;
+      const deltaKES = elapsedSeconds * incrementPerSecond;
       const nextAccumulatedAt = new Date(
         jackpot.lastAccumulatedAt.getTime() + elapsedSeconds * 1000,
       );

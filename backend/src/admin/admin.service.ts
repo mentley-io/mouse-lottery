@@ -8,11 +8,11 @@ export class AdminService implements OnModuleInit {
   private readonly logger = new Logger(AdminService.name);
   private readonly configKey = "runtime";
   private readonly defaultConfig = {
-    drawIntervalSeconds: 300,
     youtubeVideoId: "dQw4w9WgXcQ",
     liveOverlayEnabled: false,
     realtimeMode: "polling",
     pollingIntervalSeconds: 5,
+    jackpotIncrementAmount: 10,
   };
   private config = { ...this.defaultConfig };
   private loaded = false;
@@ -40,11 +40,11 @@ export class AdminService implements OnModuleInit {
     }
 
     this.config = {
-      drawIntervalSeconds: existing.drawIntervalSeconds ?? this.defaultConfig.drawIntervalSeconds,
       youtubeVideoId: existing.youtubeVideoId ?? this.defaultConfig.youtubeVideoId,
       liveOverlayEnabled: existing.liveOverlayEnabled ?? this.defaultConfig.liveOverlayEnabled,
       realtimeMode: existing.realtimeMode ?? this.defaultConfig.realtimeMode,
       pollingIntervalSeconds: existing.pollingIntervalSeconds ?? this.defaultConfig.pollingIntervalSeconds,
+      jackpotIncrementAmount: existing.jackpotIncrementAmount ?? this.defaultConfig.jackpotIncrementAmount,
     };
     this.loaded = true;
   }
@@ -66,11 +66,11 @@ export class AdminService implements OnModuleInit {
     }
 
     this.config = {
-      drawIntervalSeconds: updated.drawIntervalSeconds ?? this.defaultConfig.drawIntervalSeconds,
       youtubeVideoId: updated.youtubeVideoId ?? this.defaultConfig.youtubeVideoId,
       liveOverlayEnabled: updated.liveOverlayEnabled ?? this.defaultConfig.liveOverlayEnabled,
       realtimeMode: updated.realtimeMode ?? this.defaultConfig.realtimeMode,
       pollingIntervalSeconds: updated.pollingIntervalSeconds ?? this.defaultConfig.pollingIntervalSeconds,
+      jackpotIncrementAmount: updated.jackpotIncrementAmount ?? this.defaultConfig.jackpotIncrementAmount,
     };
   }
 
@@ -102,26 +102,25 @@ export class AdminService implements OnModuleInit {
     return this.getLiveConfig();
   }
 
-  async getDrawInterval() {
-    await this.ensureConfigLoaded();
-    return { seconds: this.config.drawIntervalSeconds };
-  }
-
-  async updateDrawInterval(seconds: number) {
-    await this.ensureConfigLoaded();
-    this.config.drawIntervalSeconds = seconds;
-    await this.persistConfig();
-    return this.getDrawInterval();
-  }
-
   async getGameRuntimeConfig() {
     await this.ensureConfigLoaded();
     return {
       youtubeVideoId: this.config.youtubeVideoId,
       liveOverlayEnabled: this.config.liveOverlayEnabled,
-      drawIntervalSeconds: this.config.drawIntervalSeconds,
       realtimeMode: this.config.realtimeMode,
       pollingIntervalSeconds: this.config.pollingIntervalSeconds,
+      jackpotIncrementAmount: this.config.jackpotIncrementAmount,
     };
+  }
+
+  async getJackpotIncrement() {
+    await this.ensureConfigLoaded();
+    return { jackpotIncrementAmount: this.config.jackpotIncrementAmount };
+  }
+
+  async updateJackpotIncrement(amount: number) {
+    await this.ensureConfigLoaded();
+    this.config.jackpotIncrementAmount = amount;
+    await this.persistConfig();
   }
 }

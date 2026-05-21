@@ -96,7 +96,7 @@ type AnnouncementConfig = {
   content: string;
 };
 
-const FIXED_POLLING_INTERVAL_MS = 5000;
+const FIXED_POLLING_INTERVAL_MS = 1000;
 const AUTH_EXPIRED_FLAG = "authExpired";
 const LAST_LOGIN_PHONE_KEY = "lastLoginPhone";
 const REMEMBER_LOGIN_PHONE_KEY = "rememberLoginPhone";

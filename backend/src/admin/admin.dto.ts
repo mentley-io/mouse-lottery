@@ -7,12 +7,6 @@ import {
   Min,
 } from "class-validator";
 
-export class UpdateDrawIntervalDto {
-  @IsInt()
-  @Min(10)
-  seconds!: number;
-}
-
 export class UpdateLiveConfigDto {
   @IsOptional()
   @IsString()
@@ -22,4 +16,10 @@ export class UpdateLiveConfigDto {
   @IsOptional()
   @IsBoolean()
   liveOverlayEnabled?: boolean;
+}
+
+export class UpdateJackpotIncrementDto {
+  @IsInt()
+  @Min(1)
+  amount!: number;
 }

@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { apiFetch } from "../../lib/apiClient";
 
 export default function AdminPage() {
-  const [drawInterval, setDrawInterval] = useState("");
+  const [jackpotIncrementAmount, setJackpotIncrementAmount] = useState("");
   const [youtubeVideoId, setYoutubeVideoId] = useState("");
   const [liveOverlayEnabled, setLiveOverlayEnabled] = useState(false);
   const [announcementEnabled, setAnnouncementEnabled] = useState(false);
@@ -22,27 +22,27 @@ export default function AdminPage() {
 
     const load = async () => {
       try {
-        const [drawRes, liveRes, announcementRes] = await Promise.all([
-          apiFetch("/api/admin/draw-interval"),
+        const [jackpotRes, liveRes, announcementRes] = await Promise.all([
+          apiFetch("/api/admin/jackpot-increment"),
           apiFetch("/api/admin/live-config"),
           apiFetch("/api/announcement"),
         ]);
 
-        if (drawRes.status === 401 || liveRes.status === 401 || announcementRes.status === 401) {
+        if (jackpotRes.status === 401 || liveRes.status === 401 || announcementRes.status === 401) {
           setMessage("Session expired. Please log in again.");
           setIsLoading(false);
           return;
         }
 
-        if (drawRes.status === 403 || liveRes.status === 403 || announcementRes.status === 403) {
+        if (jackpotRes.status === 403 || liveRes.status === 403 || announcementRes.status === 403) {
           setMessage("You do not have admin permission.");
           setIsLoading(false);
           return;
         }
 
-        if (drawRes.ok) {
-          const draw = (await drawRes.json()) as { seconds: number };
-          setDrawInterval(String(draw.seconds));
+        if (jackpotRes.ok) {
+          const jackpot = (await jackpotRes.json()) as { jackpotIncrementAmount: number };
+          setJackpotIncrementAmount(String(jackpot.jackpotIncrementAmount));
         }
 
         if (liveRes.ok) {
@@ -80,13 +80,13 @@ export default function AdminPage() {
     }
 
     try {
-      const [drawRes, liveRes] = await Promise.all([
-        apiFetch("/api/admin/draw-interval", {
+      const [jackpotRes, liveRes] = await Promise.all([
+        apiFetch("/api/admin/jackpot-increment", {
           method: "PATCH",
           headers: {
             "Content-Type": "application/json",
           },
-          body: JSON.stringify({ seconds: Number(drawInterval) }),
+          body: JSON.stringify({ amount: Number(jackpotIncrementAmount) }),
         }),
         apiFetch("/api/admin/live-config", {
           method: "PATCH",
@@ -111,17 +111,17 @@ export default function AdminPage() {
         }),
       });
 
-      if (drawRes.ok && liveRes.ok && announcementRes.ok) {
+      if (jackpotRes.ok && liveRes.ok && announcementRes.ok) {
         setMessage("Admin configuration updated.");
         return;
       }
 
-      if (drawRes.status === 401 || liveRes.status === 401 || announcementRes.status === 401) {
+      if (jackpotRes.status === 401 || liveRes.status === 401 || announcementRes.status === 401) {
         setMessage("Session expired. Please log in again.");
         return;
       }
 
-      if (drawRes.status === 403 || liveRes.status === 403 || announcementRes.status === 403) {
+      if (jackpotRes.status === 403 || liveRes.status === 403 || announcementRes.status === 403) {
         setMessage("You do not have admin permission.");
         return;
       }
@@ -139,16 +139,16 @@ export default function AdminPage() {
         Back
       </a>
       <h1>Admin Console</h1>
-      <p>Manage draw interval, YouTube live source config, and site announcement.</p>
+      <p>Manage jackpot increment, YouTube live source config, and site announcement.</p>
 
       <section style={{ display: "grid", gap: 10, marginTop: 14 }}>
-        <label htmlFor="draw-interval">Draw Interval (seconds)</label>
+        <label htmlFor="jackpot-increment">Jackpot Increment (KES/second)</label>
         <input
-          id="draw-interval"
+          id="jackpot-increment"
           type="number"
-          min={10}
-          value={drawInterval}
-          onChange={(event) => setDrawInterval(event.target.value)}
+          min={1}
+          value={jackpotIncrementAmount}
+          onChange={(event) => setJackpotIncrementAmount(event.target.value)}
           disabled={isLoading}
         />
 
@@ -191,7 +191,7 @@ export default function AdminPage() {
           placeholder="Enter announcement details shown on the homepage popup"
         />
 
-        <button type="button" onClick={save} style={{ width: "fit-content" }} disabled={isLoading || !drawInterval.trim() || !youtubeVideoId.trim()}>
+        <button type="button" onClick={save} style={{ width: "fit-content" }} disabled={isLoading || !jackpotIncrementAmount.trim() || !youtubeVideoId.trim()}>
           Save
         </button>
         {isLoading ? <p>Loading admin config...</p> : null}

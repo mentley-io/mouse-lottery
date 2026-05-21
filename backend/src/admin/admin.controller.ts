@@ -2,7 +2,7 @@ import { Body, Controller, Get, Patch, UseGuards } from "@nestjs/common";
 import { JwtAuthGuard } from "../auth/jwt-auth.guard";
 import { Permissions } from "../auth/permissions.decorator";
 import { PermissionsGuard } from "../auth/permissions.guard";
-import { UpdateDrawIntervalDto, UpdateLiveConfigDto } from "./admin.dto";
+import { UpdateLiveConfigDto, UpdateJackpotIncrementDto } from "./admin.dto";
 import { AdminService } from "./admin.service";
 
 @Controller("admin")
@@ -14,18 +14,6 @@ export class AdminController {
   @Permissions("admin:access")
   me() {
     return { canAccessAdmin: true };
-  }
-
-  @Get("draw-interval")
-  @Permissions("draw:manage")
-  getDrawInterval() {
-    return this.adminService.getDrawInterval();
-  }
-
-  @Patch("draw-interval")
-  @Permissions("draw:manage")
-  updateDrawInterval(@Body() dto: UpdateDrawIntervalDto) {
-    return this.adminService.updateDrawInterval(dto.seconds);
   }
 
   @Get("live-config")
@@ -41,5 +29,17 @@ export class AdminController {
       youtubeVideoId: dto.youtubeVideoId,
       liveOverlayEnabled: dto.liveOverlayEnabled,
     });
+  }
+
+  @Get("jackpot-increment")
+  @Permissions("draw:manage")
+  getJackpotIncrement() {
+    return this.adminService.getJackpotIncrement();
+  }
+
+  @Patch("jackpot-increment")
+  @Permissions("draw:manage")
+  updateJackpotIncrement(@Body() dto: UpdateJackpotIncrementDto) {
+    return this.adminService.updateJackpotIncrement(dto.amount);
   }
 }
