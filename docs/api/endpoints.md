@@ -79,6 +79,11 @@ updated_at: 2026-05-21
 
 ## Admin
 
+- Access policy: Admin management APIs are restricted by IP allowlist.
+- Production default allowlist: only source IP `178.128.217.196` can access admin management routes.
+- Config: `ADMIN_IP_ALLOWLIST` supports comma-separated IPs.
+- Local development: when `NODE_ENV` is not `production`, loopback IPs (`127.0.0.1`, `::1`) are additionally allowed for local testing.
+
 ### GET /admin/me
 - Purpose: Return admin permissions for frontend visibility.
 - Auth: Admin permission `admin:access`

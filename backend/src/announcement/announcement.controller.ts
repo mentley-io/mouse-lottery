@@ -1,5 +1,6 @@
 import { Body, Controller, Get, Patch, UseGuards } from "@nestjs/common";
 import { AnnouncementService } from "./announcement.service";
+import { AdminIpGuard } from "../auth/admin-ip.guard";
 import { PermissionsGuard } from "../auth/permissions.guard";
 import { Permissions } from "../auth/permissions.decorator";
 import { JwtAuthGuard } from "../auth/jwt-auth.guard";
@@ -15,7 +16,7 @@ export class AnnouncementController {
   }
 
   @Patch()
-  @UseGuards(JwtAuthGuard, PermissionsGuard)
+  @UseGuards(JwtAuthGuard, PermissionsGuard, AdminIpGuard)
   @Permissions("live:manage")
   async upsert(@Body() body: UpsertAnnouncementDto) {
     return this.announcementService.upsert(body.enabled, body.content);
