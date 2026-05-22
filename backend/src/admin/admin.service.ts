@@ -1,7 +1,46 @@
 import { Injectable, Logger, OnModuleInit } from "@nestjs/common";
 import { InjectModel } from "@nestjs/mongoose";
 import { Model } from "mongoose";
+import { Entry, EntryDocument } from "../draws/entry.schema";
+import { PayoutRecord, PayoutRecordDocument } from "../draws/payout-record.schema";
+import { User, UserDocument } from "../users/user.schema";
+import { WinnersQueryDto } from "./admin.dto";
 import { AdminConfig, AdminConfigDocument } from "./admin-config.schema";
+
+type WinnerRow = {
+  payoutId: string;
+  entryId: string;
+  userId: string;
+  phone: string;
+  winningNumber: string;
+  winningTime: string | null;
+  settledAt: string;
+  payoutKES: number;
+  jackpotBeforeSplitKES: number;
+  winnerCount: number;
+  settlementKey: string;
+};
+
+type AggregatedWinner = {
+  _id: unknown;
+  entryId: unknown;
+  userId: unknown;
+  phone?: string;
+  numbers?: number[];
+  winningSequenceEndedAt?: Date;
+  settledAt: Date;
+  payoutKES: number;
+  jackpotBeforeSplitKES: number;
+  winnerCount: number;
+  settlementKey: string;
+};
+
+function escapeCsvField(value: string): string {
+  if (/[",\n]/.test(value)) {
+    return `"${value.replace(/"/g, '""')}"`;
+  }
+  return value;
+}
 
 @Injectable()
 export class AdminService implements OnModuleInit {
@@ -20,6 +59,12 @@ export class AdminService implements OnModuleInit {
   constructor(
     @InjectModel(AdminConfig.name)
     private readonly adminConfigModel: Model<AdminConfigDocument>,
+    @InjectModel(PayoutRecord.name)
+    private readonly payoutRecordModel: Model<PayoutRecordDocument>,
+    @InjectModel(Entry.name)
+    private readonly entryModel: Model<EntryDocument>,
+    @InjectModel(User.name)
+    private readonly userModel: Model<UserDocument>,
   ) {}
 
   async onModuleInit() {
@@ -122,5 +167,185 @@ export class AdminService implements OnModuleInit {
     await this.ensureConfigLoaded();
     this.config.jackpotIncrementAmount = amount;
     await this.persistConfig();
+  }
+
+  async getWinners(query: WinnersQueryDto) {
+    const limit = query.limit ?? 200;
+    const offset = query.offset ?? 0;
+    const dateFilter = this.buildSettledAtFilter(query);
+    const matchStage = dateFilter ? { settledAt: dateFilter } : {};
+
+    const [aggregated] = await this.payoutRecordModel.aggregate<{
+      meta: Array<{ total: number }>;
+      items: AggregatedWinner[];
+    }>([
+      { $match: matchStage },
+      { $sort: { settledAt: -1, _id: -1 } },
+      {
+        $facet: {
+          meta: [{ $count: "total" }],
+          items: [
+            { $skip: offset },
+            { $limit: limit },
+            {
+              $lookup: {
+                from: this.entryModel.collection.name,
+                localField: "entryId",
+                foreignField: "_id",
+                as: "entry",
+              },
+            },
+            { $unwind: { path: "$entry", preserveNullAndEmptyArrays: true } },
+            {
+              $lookup: {
+                from: this.userModel.collection.name,
+                localField: "userId",
+                foreignField: "_id",
+                as: "user",
+              },
+            },
+            { $unwind: { path: "$user", preserveNullAndEmptyArrays: true } },
+            {
+              $project: {
+                _id: 1,
+                entryId: 1,
+                userId: 1,
+                settledAt: 1,
+                payoutKES: 1,
+                jackpotBeforeSplitKES: 1,
+                winnerCount: 1,
+                settlementKey: 1,
+                phone: "$user.phone",
+                numbers: "$entry.numbers",
+                winningSequenceEndedAt: "$entry.winningSequenceEndedAt",
+              },
+            },
+          ],
+        },
+      },
+    ]);
+
+    const total = aggregated?.meta?.[0]?.total ?? 0;
+    const items = (aggregated?.items ?? []).map((item) => this.toWinnerRow(item));
+
+    return {
+      total,
+      limit,
+      offset,
+      items,
+    };
+  }
+
+  async buildWinnersCsv(query: WinnersQueryDto): Promise<string> {
+    const dateFilter = this.buildSettledAtFilter(query);
+    const matchStage = dateFilter ? { settledAt: dateFilter } : {};
+
+    const rows = await this.payoutRecordModel.aggregate<AggregatedWinner>([
+      { $match: matchStage },
+      { $sort: { settledAt: -1, _id: -1 } },
+      {
+        $lookup: {
+          from: this.entryModel.collection.name,
+          localField: "entryId",
+          foreignField: "_id",
+          as: "entry",
+        },
+      },
+      { $unwind: { path: "$entry", preserveNullAndEmptyArrays: true } },
+      {
+        $lookup: {
+          from: this.userModel.collection.name,
+          localField: "userId",
+          foreignField: "_id",
+          as: "user",
+        },
+      },
+      { $unwind: { path: "$user", preserveNullAndEmptyArrays: true } },
+      {
+        $project: {
+          _id: 1,
+          entryId: 1,
+          userId: 1,
+          settledAt: 1,
+          payoutKES: 1,
+          jackpotBeforeSplitKES: 1,
+          winnerCount: 1,
+          settlementKey: 1,
+          phone: "$user.phone",
+          numbers: "$entry.numbers",
+          winningSequenceEndedAt: "$entry.winningSequenceEndedAt",
+        },
+      },
+    ]);
+
+    const header = [
+      "phone",
+      "winningNumber",
+      "winningTime",
+      "payoutKES",
+      "jackpotBeforeSplitKES",
+      "winnerCount",
+      "settlementKey",
+      "settledAt",
+      "entryId",
+      "userId",
+    ];
+
+    const lines = [header.join(",")];
+
+    for (const row of rows.map((item) => this.toWinnerRow(item))) {
+      lines.push([
+        row.phone,
+        row.winningNumber,
+        row.winningTime ?? "",
+        String(row.payoutKES),
+        String(row.jackpotBeforeSplitKES),
+        String(row.winnerCount),
+        row.settlementKey,
+        row.settledAt,
+        row.entryId,
+        row.userId,
+      ].map(escapeCsvField).join(","));
+    }
+
+    return lines.join("\n");
+  }
+
+  private buildSettledAtFilter(query: WinnersQueryDto): { $gte?: Date; $lte?: Date } | null {
+    const from = query.from ? new Date(query.from) : null;
+    const to = query.to ? new Date(query.to) : null;
+
+    if (!from && !to) {
+      return null;
+    }
+
+    const filter: { $gte?: Date; $lte?: Date } = {};
+    if (from) {
+      filter.$gte = from;
+    }
+    if (to) {
+      filter.$lte = to;
+    }
+    return filter;
+  }
+
+  private toWinnerRow(item: AggregatedWinner): WinnerRow {
+    const winningNumber = Array.isArray(item.numbers)
+      ? item.numbers.map((value) => String(value)).join("")
+      : "";
+
+    return {
+      payoutId: String(item._id),
+      entryId: String(item.entryId),
+      userId: String(item.userId),
+      phone: item.phone ?? "",
+      winningNumber,
+      winningTime: item.winningSequenceEndedAt ? item.winningSequenceEndedAt.toISOString() : null,
+      settledAt: item.settledAt.toISOString(),
+      payoutKES: item.payoutKES,
+      jackpotBeforeSplitKES: item.jackpotBeforeSplitKES,
+      winnerCount: item.winnerCount,
+      settlementKey: item.settlementKey,
+    };
   }
 }

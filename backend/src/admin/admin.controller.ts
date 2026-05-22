@@ -1,8 +1,9 @@
-import { Body, Controller, Get, Patch, UseGuards } from "@nestjs/common";
+import { Body, Controller, Get, Patch, Query, Res, UseGuards } from "@nestjs/common";
+import { Response } from "express";
 import { JwtAuthGuard } from "../auth/jwt-auth.guard";
 import { Permissions } from "../auth/permissions.decorator";
 import { PermissionsGuard } from "../auth/permissions.guard";
-import { UpdateLiveConfigDto, UpdateJackpotIncrementDto } from "./admin.dto";
+import { UpdateLiveConfigDto, UpdateJackpotIncrementDto, WinnersQueryDto } from "./admin.dto";
 import { AdminService } from "./admin.service";
 
 @Controller("admin")
@@ -41,5 +42,21 @@ export class AdminController {
   @Permissions("draw:manage")
   updateJackpotIncrement(@Body() dto: UpdateJackpotIncrementDto) {
     return this.adminService.updateJackpotIncrement(dto.amount);
+  }
+
+  @Get("winners")
+  @Permissions("draw:manage")
+  listWinners(@Query() query: WinnersQueryDto) {
+    return this.adminService.getWinners(query);
+  }
+
+  @Get("winners/csv")
+  @Permissions("draw:manage")
+  async downloadWinnersCsv(@Query() query: WinnersQueryDto, @Res() res: Response) {
+    const csv = await this.adminService.buildWinnersCsv(query);
+    const today = new Date().toISOString().slice(0, 10);
+    res.setHeader("Content-Type", "text/csv; charset=utf-8");
+    res.setHeader("Content-Disposition", `attachment; filename=winner-list-${today}.csv`);
+    res.send(csv);
   }
 }

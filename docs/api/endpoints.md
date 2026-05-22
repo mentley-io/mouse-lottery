@@ -103,6 +103,19 @@ updated_at: 2026-05-21
 - Auth: Admin permission `live:manage`
 - Request: `{ youtubeVideoId?, liveOverlayEnabled? }`
 
+### GET /admin/winners
+- Purpose: Query winner list for admin reporting.
+- Auth: Admin permission `draw:manage`
+- Query (optional): `limit`, `offset`, `from` (ISO datetime), `to` (ISO datetime)
+- Response: `{ total, limit, offset, items[] }`
+- Response item includes: `{ phone, winningNumber, winningTime, payoutKES, jackpotBeforeSplitKES, winnerCount, settlementKey, settledAt, entryId, userId }`
+
+### GET /admin/winners/csv
+- Purpose: Download winner list as CSV.
+- Auth: Admin permission `draw:manage`
+- Query (optional): `from` (ISO datetime), `to` (ISO datetime)
+- CSV columns: `phone, winningNumber, winningTime, payoutKES, jackpotBeforeSplitKES, winnerCount, settlementKey, settledAt, entryId, userId`
+
 ### POST /admin/draws
 - Purpose: Insert/trigger draw result (MVP simulation).
 - Auth: Admin permission `draw:manage`
