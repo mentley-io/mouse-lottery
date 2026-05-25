@@ -57,6 +57,7 @@ type TicketEntry = {
   numbers: number[];
   status: "Pending" | "Won" | "Expired" | "Voided";
   callbackStatus?: "pending" | "success" | "failed" | "abnormal" | null;
+  callbackMessage?: string | null;
   payoutKES: number | null;
   placedAt: string;
   validFrom: string;
@@ -574,6 +575,15 @@ export default function HomePage() {
     return `entry-status entry-${displayStatus}`;
   };
 
+  const getAbnormalDescription = (entry: TicketEntry): string => {
+    const callbackMessage = entry.callbackMessage?.trim();
+    if (callbackMessage && callbackMessage.length > 0) {
+      return callbackMessage;
+    }
+
+    return "Please log in again.";
+  };
+
   const howToPlay: HowToRule[] = [
     {
       id: 1,
@@ -602,8 +612,8 @@ export default function HomePage() {
     {
       id: 5,
       icon: "🔄",
-      title: "Re-selection Rule",
-      body: "You may reselect your numbers every 30 minutes, after which your previous selection becomes void.",
+      title: "Multiple Bets Rule",
+      body: "You may place multiple bets in one day. All same-day selections remain valid and participate in settlement until 23:59:59.",
     },
     {
       id: 6,
@@ -792,7 +802,7 @@ export default function HomePage() {
             </button>
           </div>
 
-          <p className="subtle-text">You can change your numbers every 30 minutes. Previous selections will be voided.</p>
+          <p className="subtle-text">You can place multiple bets per day. All selections stay active until 23:59:59.</p>
           {isBettingLocked ? <p className="subtle-text">Betting is currently locked by admin announcement.</p> : null}
           {playMessage ? <p className="subtle-text">{playMessage}</p> : null}
         </article>
@@ -816,7 +826,7 @@ export default function HomePage() {
                     {entry.winningSequenceEndedAt ? new Date(entry.winningSequenceEndedAt).toLocaleTimeString() : ""}
                   </small>
                 ) : getEntryDisplayStatus(entry) === "Abnormal" ? (
-                  <small>Please log in again.</small>
+                  <small>{getAbnormalDescription(entry)}</small>
                 ) : (
                   <small>{entry.settledAt ? new Date(entry.settledAt).toLocaleString() : ""}</small>
                 )}
@@ -858,7 +868,7 @@ export default function HomePage() {
                     : getEntryDisplayStatus(entry) === "Won"
                     ? "Won 🎉"
                     : getEntryDisplayStatus(entry) === "Abnormal"
-                    ? "Please log in again."
+                    ? getAbnormalDescription(entry)
                     : getEntryDisplayStatus(entry)}</strong>
                   <span>
                     {entry.settledAt

@@ -50,7 +50,7 @@ updated_at: 2026-05-21
 - Auth: User
 - Request: `{ numbers: [n1,n2,n3,n4] }`
 - Response: `{ id, numbers, status, placedAt, validFrom, expiresAt }`
-- Notes: previous `Pending` entry for same user is marked `Voided`.
+- Notes: users can place multiple entries on the same day; all same-day entries remain valid and settle independently until `23:59:59` UTC.
 
 ### GET /game/my-entries
 - Purpose: Return my recent entries and settlement outcome.

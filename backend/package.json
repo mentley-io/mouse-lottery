@@ -7,6 +7,7 @@
     "build": "tsc -p tsconfig.json",
     "start": "node dist/main.js",
     "test:e2e:wallet": "node tests/wallet-jackpot.e2e.mjs",
+    "test:e2e:multi-entry": "node tests/multi-entry-same-day.e2e.mjs",
     "lint": "echo 'lint:backend not configured yet'"
   },
   "dependencies": {

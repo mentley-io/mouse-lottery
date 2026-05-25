@@ -129,11 +129,6 @@ export class DrawsService {
     const validFrom = new Date(now.getTime() + 5 * 60 * 1000);
     const expiresAt = endOfUtcDay(now);
 
-    await this.entryModel.updateMany(
-      { userId: new Types.ObjectId(userId), status: "Pending" },
-      { $set: { status: "Voided", settledAt: new Date() } },
-    );
-
     const entry = await this.entryModel.create({
       userId: new Types.ObjectId(userId),
       numbers,
@@ -160,14 +155,15 @@ export class DrawsService {
       return;
     }
 
-    // 如果 callbackResponse 沒有 actionId，強制標記為 abnormal
-    let callbackStatus: 'success' | 'abnormal';
-    let callbackMessage = response.message;
+    let callbackStatus: "success" | "abnormal";
+    const callbackMessage = typeof response.message === "string" && response.message.trim().length > 0
+      ? response.message
+      : undefined;
+
     if (!response.actionId) {
-      callbackStatus = 'abnormal';
-      callbackMessage = (callbackMessage ? callbackMessage + ' ' : '') + '[Missing callbackActionId]';
+      callbackStatus = "abnormal";
     } else {
-      callbackStatus = response.success === true && response.error !== true ? 'success' : 'abnormal';
+      callbackStatus = response.success === true && response.error !== true ? "success" : "abnormal";
     }
 
     await this.entryModel.updateOne(
