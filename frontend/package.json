@@ -3,7 +3,7 @@
   "version": "1.0.0",
   "private": true,
   "scripts": {
-    "dev": "rm -rf .next && next dev -p 4000",
+    "dev": "rm -rf .next && NEXT_DISABLE_WEBPACK_CACHE=1 next dev -p 4000",
     "build": "next build",
     "start": "next start -p 4000",
     "lint": "echo 'lint:frontend not configured yet'"
