@@ -16,13 +16,13 @@ export function Wheel({ latestNumber, isSpinning }: Props) {
   const [currentRotation, setCurrentRotation] = useState(0);
   const [stoppedNumber, setStoppedNumber] = useState<number | null>(null);
 
-  // 当新数字进来时，停止转盘
+  // 當新數字進來時，停止轉盤
   useEffect(() => {
     if (latestNumber === undefined) {
       return;
     }
 
-    // 首次加载时只记录当前数字，不触发停盘。
+    // 首次載入時只記錄當前數字，不觸發停盤。
     if (lastHandledNumberRef.current === null) {
       lastHandledNumberRef.current = latestNumber;
       return;
@@ -35,7 +35,7 @@ export function Wheel({ latestNumber, isSpinning }: Props) {
     }
   }, [latestNumber]);
 
-  // 绘制转盘
+  // 繪製轉盤
   useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
@@ -49,23 +49,23 @@ export function Wheel({ latestNumber, isSpinning }: Props) {
     const centerY = height / 2;
     const radius = Math.min(width, height) / 2 - 20;
 
-    // 清除画布
+    // 清除畫布
     ctx.clearRect(0, 0, width, height);
 
-    // 保存状态
+    // 保存狀態
     ctx.save();
 
-    // 应用旋转
+    // 套用旋轉
     ctx.translate(centerX, centerY);
     ctx.rotate((currentRotation * Math.PI) / 180);
     ctx.translate(-centerX, -centerY);
 
-    // 绘制每个数字区间（红色和蓝色交替）
+    // 繪製每個數字區間（紅色和藍色交替）
     for (let i = 0; i < 10; i++) {
       const startAngle = (i * 36 - 90) * (Math.PI / 180);
       const endAngle = ((i + 1) * 36 - 90) * (Math.PI / 180);
 
-      // 交替绘制红色和蓝色分段
+      // 交替繪製紅色和藍色分段
       ctx.fillStyle = i % 2 === 0 ? "#d32f2f" : "#1a47a0";
       ctx.beginPath();
       ctx.moveTo(centerX, centerY);
@@ -73,7 +73,7 @@ export function Wheel({ latestNumber, isSpinning }: Props) {
       ctx.lineTo(centerX, centerY);
       ctx.fill();
 
-      // 绘制分段边框（金色）
+      // 繪製分段邊框（金色）
       ctx.strokeStyle = "#ffd700";
       ctx.lineWidth = 2;
       ctx.beginPath();
@@ -82,7 +82,7 @@ export function Wheel({ latestNumber, isSpinning }: Props) {
       ctx.lineTo(centerX, centerY);
       ctx.stroke();
 
-      // 绘制数字
+      // 繪製數字
       const angle = (i * 36 + 18 - 90) * (Math.PI / 180);
       const x = centerX + Math.cos(angle) * (radius - 45);
       const y = centerY + Math.sin(angle) * (radius - 45);
@@ -96,7 +96,7 @@ export function Wheel({ latestNumber, isSpinning }: Props) {
 
     ctx.restore();
 
-    // 绘制指针（在顶部）
+    // 繪製指針（在頂部）
     ctx.fillStyle = "#ffd700";
     ctx.beginPath();
     ctx.moveTo(centerX - 18, centerY - radius - 15);
@@ -109,7 +109,7 @@ export function Wheel({ latestNumber, isSpinning }: Props) {
     ctx.lineWidth = 2;
     ctx.stroke();
 
-    // 绘制中心圆（金色）
+    // 繪製中心圓（金色）
     ctx.fillStyle = "#ffd700";
     ctx.beginPath();
     ctx.arc(centerX, centerY, 16, 0, Math.PI * 2);
@@ -120,7 +120,7 @@ export function Wheel({ latestNumber, isSpinning }: Props) {
     ctx.stroke();
   }, [currentRotation]);
 
-  // 动画循环
+  // 動畫循環
   useEffect(() => {
     if (!isSpinning) {
       return;
@@ -160,12 +160,12 @@ export function Wheel({ latestNumber, isSpinning }: Props) {
     };
   }, [isSpinning, stoppedNumber]);
 
-  // 计算停止位置
+  // 計算停止位置
   useEffect(() => {
     if (stoppedNumber !== undefined && stoppedNumber !== null) {
-      // 数字i在 (i * 36 + 18 - 90) 度的位置
-      // 指针在270度（顶部）
-      // 要让数字i到达指针位置，需要旋转 (342 - i * 36) 度
+      // 數字i在 (i * 36 + 18 - 90) 度的位置
+      // 指針在270度（頂部）
+      // 要讓數字i到達指針位置，需要旋轉 (342 - i * 36) 度
       const targetRotation = (342 - stoppedNumber * 36) % 360;
       setCurrentRotation(targetRotation);
     }

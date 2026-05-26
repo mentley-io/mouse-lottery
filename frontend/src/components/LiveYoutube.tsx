@@ -30,7 +30,7 @@ export function LiveYoutube({
 
   return (
     <>
-      {/* 视频/转盘区块 */}
+      {/* 影片/轉盤區塊 */}
       <section className="live-stage">
         <div className="video-wrap">
           {wheelMode ? (
@@ -78,7 +78,7 @@ export function LiveYoutube({
         </div>
       </section>
 
-      {/* 控制按钮区块 */}
+      {/* 控制按鈕區塊 */}
       <section className="live-controls">
         <button
           type="button"
