@@ -50,7 +50,12 @@ Edit `.env` and set secure values at least for:
 - `CORS_ALLOWED_ORIGINS` — set to your production domain, e.g. `https://mouse-lottery.weedza.co`
 - `MERCHANT_KE7STG_CALLBACK_URL` — if staging merchant is active
 - `MERCHANT_KE7PROD_CALLBACK_URL` — if production merchant is active
-- `NEXT_PUBLIC_API_BASE_URL` — leave **empty** in Docker (nginx proxies /api/* to backend; only needed for local dev)
+
+Notes:
+
+- This root `.env` is consumed by backend runtime configuration in Docker.
+- Local frontend development uses `frontend/.env.local`, not the root `.env`.
+- Docker frontend build already injects an empty `NEXT_PUBLIC_API_BASE_URL`, so that value does not need to exist in the root `.env`.
 
 ## 3. Start Services
 

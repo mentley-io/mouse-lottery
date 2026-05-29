@@ -11,14 +11,41 @@ updated_at: 2026-05-14
 Connection string:
 - `mongodb://localhost:27017/mouse_lottery?authSource=admin`
 
-## Environment Variables (Draft)
+## Environment Variables
+
+Local development uses app-specific env files:
+
+- `backend/.env` for NestJS backend settings
+- `frontend/.env.local` for Next.js frontend settings
+
+Recommended setup:
+
+```bash
+cp backend/.env.example backend/.env
+cp frontend/.env.local.example frontend/.env.local
+```
+
+Backend keys:
 
 - `MONGODB_URI`
 - `JWT_ACCESS_SECRET`
 - `JWT_REFRESH_SECRET`
+- `JWT_ACCESS_EXPIRES_IN`
+- `JWT_REFRESH_EXPIRES_IN`
 - `SUPER_ADMIN_PHONE`
 - `SUPER_ADMIN_PASSWORD`
+- `BOOTSTRAP_STRICT_MODE`
+- `NODE_ENV`
+- `ADMIN_IP_ALLOWLIST`
+- `CORS_ALLOWED_ORIGINS`
+- `MERCHANT_KE7STG_CALLBACK_URL`
+- `MERCHANT_KE7PROD_CALLBACK_URL`
+
+Frontend keys:
+
 - `NEXT_PUBLIC_API_BASE_URL`
+
+Root `.env` is reserved for Docker/VM deployment and is not the primary local frontend env source.
 
 ## Super Admin Bootstrap
 

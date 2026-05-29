@@ -464,7 +464,7 @@ export default function AdminPage() {
                   <td style={{ borderBottom: "1px solid #f0f0f0", padding: "8px 6px" }}>{winner.phone || "-"}</td>
                   <td style={{ borderBottom: "1px solid #f0f0f0", padding: "8px 6px" }}>{winner.winningNumber || "-"}</td>
                   <td style={{ borderBottom: "1px solid #f0f0f0", padding: "8px 6px" }}>
-                    {winner.winningTime ? new Date(winner.winningTime).toLocaleString() : "-"}
+                    {winner.winningTime ? new Date(winner.winningTime).toLocaleString("en-KE", { timeZone: "Africa/Nairobi" }) : "-"}
                   </td>
                   <td style={{ borderBottom: "1px solid #f0f0f0", padding: "8px 6px", textAlign: "right" }}>{winner.payoutKES}</td>
                   <td style={{ borderBottom: "1px solid #f0f0f0", padding: "8px 6px", textAlign: "right" }}>{winner.jackpotBeforeSplitKES}</td>

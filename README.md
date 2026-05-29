@@ -18,6 +18,14 @@ For full docs index, see [docs/README.md](docs/README.md).
 - Documentation baseline: initialized
 - Runtime implementation: in progress
 
+## Environment Files
+
+- `backend/.env`: local backend development
+- `frontend/.env.local`: local frontend development
+- `.env`: root deployment/backend fallback configuration
+
+Example files are provided in `backend/.env.example`, `frontend/.env.local.example`, and `.env.example`.
+
 ## Core Product Constraints
 
 - Non-winning final status must be `Expired`

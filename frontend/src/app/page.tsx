@@ -542,7 +542,7 @@ export default function HomePage() {
     }
 
     setPlayMessage(
-      `Ticket submitted: ${payload.numbers.join("-")}. Valid from ${new Date(payload.validFrom).toLocaleTimeString()} until 23:59.`,
+      `Ticket submitted: ${payload.numbers.join("-")}. Valid from ${new Date(payload.validFrom).toLocaleTimeString("en-KE", { timeZone: "Africa/Nairobi" })} until 23:59.`,
     );
     setSelectedNumbers([]);
     setSubmittingEntry(false);
@@ -759,7 +759,7 @@ export default function HomePage() {
                 <div key={item.dayKey} className="history-row">
                   <span>{item.dayKey}</span>
                   <strong>{item.numbers.join("-")}</strong>
-                  <span>{item.total} numbers · last at {new Date(item.lastReceivedAt).toLocaleString()}</span>
+                  <span>{item.total} numbers · last at {new Date(item.lastReceivedAt).toLocaleString("en-KE", { timeZone: "Africa/Nairobi" })}</span>
                 </div>
               ))}
               {drawHistory.length === 0 ? <p>No draw history yet.</p> : null}
@@ -819,16 +819,16 @@ export default function HomePage() {
               <div key={entry.id} className={getEntryStatusClassName(entry)}>
                 <strong>{entry.numbers.join("-")}</strong> · {getEntryDisplayStatus(entry)}
                 {getEntryDisplayStatus(entry) === "Pending" ? (
-                  <small>Valid from {new Date(entry.validFrom).toLocaleTimeString()} · expires 23:59</small>
+                  <small>Valid from {new Date(entry.validFrom).toLocaleTimeString("en-KE", { timeZone: "Africa/Nairobi" })} · expires 23:59</small>
                 ) : getEntryDisplayStatus(entry) === "Won" ? (
                   <small>
                     Won! 🎉
-                    {entry.winningSequenceEndedAt ? new Date(entry.winningSequenceEndedAt).toLocaleTimeString() : ""}
+                    {entry.winningSequenceEndedAt ? new Date(entry.winningSequenceEndedAt).toLocaleTimeString("en-KE", { timeZone: "Africa/Nairobi" }) : ""}
                   </small>
                 ) : getEntryDisplayStatus(entry) === "Abnormal" ? (
                   <small>{getAbnormalDescription(entry)}</small>
                 ) : (
-                  <small>{entry.settledAt ? new Date(entry.settledAt).toLocaleString() : ""}</small>
+                  <small>{entry.settledAt ? new Date(entry.settledAt).toLocaleString("en-KE", { timeZone: "Africa/Nairobi" }) : ""}</small>
                 )}
               </div>
             ))}
@@ -837,7 +837,7 @@ export default function HomePage() {
                 <strong>Wallet Credits</strong>
                 {walletCredits.length > 0 ? walletCredits.slice(0, 3).map((credit) => (
                   <small key={credit.id}>
-                    + {credit.currency} {new Intl.NumberFormat("en-US").format(credit.payoutKES)} · {new Date(credit.settledAt).toLocaleString()}
+                    + {credit.currency} {new Intl.NumberFormat("en-US").format(credit.payoutKES)} · {new Date(credit.settledAt).toLocaleString("en-KE", { timeZone: "Africa/Nairobi" })}
                   </small>
                 )) : <small>No credit records yet.</small>}
               </div>
@@ -864,7 +864,7 @@ export default function HomePage() {
                 <div key={entry.id} className="history-row">
                   <span>{entry.numbers.join("-")} · {getEntryDisplayStatus(entry)}</span>
                   <strong>{getEntryDisplayStatus(entry) === "Pending"
-                    ? `Valid from ${new Date(entry.validFrom).toLocaleTimeString()}`
+                    ? `Valid from ${new Date(entry.validFrom).toLocaleTimeString("en-KE", { timeZone: "Africa/Nairobi" })}`
                     : getEntryDisplayStatus(entry) === "Won"
                     ? "Won 🎉"
                     : getEntryDisplayStatus(entry) === "Abnormal"
@@ -872,7 +872,7 @@ export default function HomePage() {
                     : getEntryDisplayStatus(entry)}</strong>
                   <span>
                     {entry.settledAt
-                      ? new Date(entry.settledAt).toLocaleString()
+                      ? new Date(entry.settledAt).toLocaleString("en-KE", { timeZone: "Africa/Nairobi" })
                       : `Expires 23:59`}
                   </span>
                 </div>

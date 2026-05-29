@@ -10,12 +10,16 @@ import { Entry, EntryDocument, EntryStatus } from "./entry.schema";
 import { JackpotState, JackpotStateDocument } from "./jackpot-state.schema";
 import { PayoutRecord, PayoutRecordDocument } from "./payout-record.schema";
 
-function toUtcDayKey(date: Date): string {
-  return date.toISOString().slice(0, 10);
+const KENYA_OFFSET_MS = 3 * 60 * 60 * 1000; // UTC+3 (Africa/Nairobi)
+
+function toKenyaDayKey(date: Date): string {
+  return new Date(date.getTime() + KENYA_OFFSET_MS).toISOString().slice(0, 10);
 }
 
-function endOfUtcDay(date: Date): Date {
-  return new Date(date.toISOString().slice(0, 10) + "T23:59:59.999Z");
+function endOfKenyaDay(date: Date): Date {
+  // 23:59:59.999 Kenya time (UTC+3) = T20:59:59.999Z on the same Kenya-local date
+  const kenyaDateStr = toKenyaDayKey(date);
+  return new Date(kenyaDateStr + "T20:59:59.999Z");
 }
 
 const JACKPOT_SCOPE = "global";
@@ -46,7 +50,7 @@ export class DrawsService {
     await this.accrueJackpotByTime(now);
 
     const runtimeConfig = await this.adminService.getGameRuntimeConfig();
-    const today = toUtcDayKey(now);
+    const today = toKenyaDayKey(now);
     const todayNumbers = await this.drawnNumberModel
       .find({ dayKey: today, receivedAt: { $lte: now } })
       .sort({ receivedAt: 1 })
@@ -111,7 +115,7 @@ export class DrawsService {
       throw new BadRequestException("Invalid Timestamp format.");
     }
     const receivedAt = clampToNow(parsedReceivedAt);
-    const dayKey = toUtcDayKey(receivedAt);
+    const dayKey = toKenyaDayKey(receivedAt);
     const saved = await this.drawnNumberModel.create({ number, receivedAt, dayKey });
     this.logger.log(`Pushed ${number} at ${receivedAt.toISOString()} (day=${dayKey})`);
     await this.accrueJackpotByTime(receivedAt);
@@ -127,7 +131,7 @@ export class DrawsService {
     }
     const now = new Date();
     const validFrom = new Date(now.getTime() + 5 * 60 * 1000);
-    const expiresAt = endOfUtcDay(now);
+    const expiresAt = endOfKenyaDay(now);
 
     const entry = await this.entryModel.create({
       userId: new Types.ObjectId(userId),
